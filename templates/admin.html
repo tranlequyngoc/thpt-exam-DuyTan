@@ -41,6 +41,16 @@
     </div>
     <div class="container">
     <h1 style="margin:20px 0;font-size:28px">&#x1F6E1; Admin Dashboard</h1>
+    <div id="seedBox" style="background:linear-gradient(135deg,#e74c3c,#c0392b);border-radius:16px;padding:20px 24px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+    <div>
+    <div style="font-size:18px;font-weight:800">&#x1F4DA; Chua co de thi? Bam nut nay!</div>
+    <div style="font-size:13px;opacity:.9;margin-top:4px">Tu dong tao 17 de thi + 340 cau hoi co dap an vao database</div>
+    </div>
+    <button onclick="seedExams()" id="seedBtn" style="background:#fff;color:#e74c3c;border:none;padding:12px 28px;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer">
+    &#x1F680; TAO DE THI MAU NGAY
+    </button>
+    </div>
+    <div id="seedResult" style="display:none;background:#27ae60;color:#fff;border-radius:12px;padding:14px 20px;margin-bottom:16px;font-size:15px;font-weight:700;text-align:center"></div>
     <div class="stats" id="stats"></div>
     <div class="tabs">
     <div class="tab active" onclick="switchTab('users')">&#x1F465; Nguoi dung</div>
@@ -135,4 +145,30 @@
     <td style="color:${(s.violations||0)>0?'#e74c3c':'#27ae60'};font-weight:700">${s.violations||0} lan</td>
     <td style="font-size:11px">${(s.submitted_at||'').slice(0,16)}</td></tr>`).join('')+'</table>';}
     loadOverview();loadUsers();
+
+    async function seedExams(){
+        const btn=document.getElementById('seedBtn');
+        const result=document.getElementById('seedResult');
+        btn.textContent='Dang tao... Cho 30-60 giay...';
+        btn.style.opacity='0.6';
+        btn.disabled=true;
+        result.style.display='none';
+        try{
+            const r=await fetch('/api/admin/seed-exams',{method:'POST'});
+            const text=await r.text();
+            result.style.display='block';
+            result.textContent='OK: '+text;
+            document.getElementById('seedBox').style.background='linear-gradient(135deg,#27ae60,#219a52)';
+            btn.textContent='Da tao xong!';
+            loadOverview();
+            setTimeout(()=>location.reload(),2000);
+        }catch(e){
+            result.style.display='block';
+            result.style.background='#e74c3c';
+            result.textContent='Loi: '+e.message;
+            btn.textContent='Thu lai';
+            btn.style.opacity='1';
+            btn.disabled=false;
+        }
+    }
     </script></body></html>

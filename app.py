@@ -1246,7 +1246,7 @@ def ai_reply(msg):
     return f"Cô giáo AI nhận được câu hỏi: \"{msg[:80]}\"\n\nĐây là câu hỏi thú vị! Cô gợi ý:\n1. Xác định rõ kiến thức liên quan\n2. Viết ra công thức cần dùng\n3. Áp dụng từng bước cẩn thận\n4. Kiểm tra lại kết quả\n\nEm hỏi cụ thể hơn để cô hướng dẫn chi tiết nhé!"
 
 # ─── SEED EXAM DATA ───
-@app.route('/api/admin/seed-exams', methods=['POST'])
+@app.route('/api/admin/seed-exams', methods=['GET','POST'])
 @admin_req
 def api_seed_exams():
     c = get_db()
