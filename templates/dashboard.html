@@ -86,6 +86,7 @@
     <a href="/stats">&#x1F4CA; Thống kê</a>
     <a href="/teacher-review" id="reviewBtn" style="display:none">&#x1F441; Xem bài HS</a>
     <a href="/create-exam" id="createBtn" style="display:none">&#x270F; Tạo đề</a>
+    <a href="/admin" id="adminBtn" style="display:none">&#x1F6E1; Admin</a>
     <a href="/api/logout">&#x1F6AA; Thoát</a>
     </div>
     </div>
@@ -111,12 +112,15 @@
     const fullname='{{session.fullname}}';
     document.getElementById('userInfo').textContent='Hi, '+fullname+'!';
     if(role=='teacher'||role=='admin'){document.getElementById('createBtn').style.display='inline';document.getElementById('reviewBtn').style.display='inline';}
+if(role=='admin'){document.getElementById('adminBtn').style.display='inline';}
     
     function getSubjectClass(s){
         s=(s||'').toLowerCase();
         if(s.includes('toan')||s.includes('math'))return 'toan';
         if(s.includes('ly')||s.includes('vat'))return 'ly';
         if(s.includes('tin')||s.includes('it'))return 'tin';
+        if(s.includes('van')||s.includes('ngu'))return 'other';
+        if(s.includes('su')||s.includes('dia')||s.includes('gdcd'))return 'other';
         return 'other';
     }
     
@@ -208,10 +212,13 @@
     <div style="opacity:0.9;font-size:14px">Hệ thống chọn ngẫu nhiên 10 câu — làm ngay không cần chọn đề!</div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
-    <button onclick="quickExam('Toan')" class="btn" style="background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.5);padding:10px 18px">&#x1F4D0; Toan</button>
-    <button onclick="quickExam('Vật lý')" class="btn" style="background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.5);padding:10px 18px">&#x269B; Vật lý</button>
-    <button onclick="quickExam('Tin học')" class="btn" style="background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.5);padding:10px 18px">&#x1F4BB; Tin học</button>
-    <button onclick="quickExam('')" class="btn" style="background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.5);padding:10px 18px">&#x1F3B2; Ngẫu nhiên</button>
+    <button onclick="quickExam('Toan')" class="btn" style="background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.5);padding:8px 14px;font-size:12px">&#x1F4D0; Toan</button>
+    <button onclick="quickExam('Vật lý')" class="btn" style="background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.5);padding:8px 14px;font-size:12px">&#x269B; Ly</button>
+    <button onclick="quickExam('Tin học')" class="btn" style="background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.5);padding:8px 14px;font-size:12px">&#x1F4BB; Tin</button>
+    <button onclick="quickExam('Ngu van')" class="btn" style="background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.5);padding:8px 14px;font-size:12px">&#x1F4D6; Van</button>
+    <button onclick="quickExam('Hoa hoc')" class="btn" style="background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.5);padding:8px 14px;font-size:12px">&#x1F9EA; Hoa</button>
+    <button onclick="quickExam('Lich su')" class="btn" style="background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.5);padding:8px 14px;font-size:12px">&#x1F3DB; Su</button>
+    <button onclick="quickExam('')" class="btn" style="background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.5);padding:8px 14px;font-size:12px">&#x1F3B2; Random</button>
     </div>
     </div>
     

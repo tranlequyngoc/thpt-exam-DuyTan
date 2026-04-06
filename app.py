@@ -8,7 +8,7 @@ from flask import Flask, render_template, request, jsonify, redirect, session
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
+app.secret_key = os.environ.get('SECRET_KEY', 'xexam-duytan-secret-2026-stable')
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'uploads')
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
 DB = os.path.join(os.path.dirname(__file__), 'data', 'xexam.db')
@@ -122,6 +122,7 @@ def init_db():
 
     pw = hashlib.sha256('admin123'.encode()).hexdigest()
     pw2 = hashlib.sha256('123456'.encode()).hexdigest()
+    pw_super = hashlib.sha256('DuyTan@2026'.encode()).hexdigest()
     try:
             c.execute("INSERT OR IGNORE INTO users(username,password_hash,fullname,role,avatar) VALUES(?,?,?,?,?)",
                       ('admin', pw, 'Quản trị viên', 'admin', '👑'))
@@ -129,6 +130,8 @@ def init_db():
                       ('teacher', pw, 'Giáo viên Demo', 'teacher', '👨‍🏫'))
             c.execute("INSERT OR IGNORE INTO users(username,password_hash,fullname,role,avatar) VALUES(?,?,?,?,?)",
                       ('student', pw2, 'Học sinh Demo', 'student', '🎓'))
+            c.execute("INSERT OR IGNORE INTO users(username,password_hash,fullname,role,avatar) VALUES(?,?,?,?,?)",
+                      ('superadmin', pw_super, 'Super Admin DuyTan', 'admin', '🛡️'))
             c.commit()
     except: pass
     c.close()
@@ -147,6 +150,15 @@ def teacher_req(f):
             if 'user_id' not in session: return redirect('/login')
             if session.get('role') not in ('teacher', 'admin'):
                 return jsonify({'error': 'Không có quyền'}), 403
+            return f(*a, **k)
+    return w
+
+def admin_req(f):
+    @wraps(f)
+    def w(*a, **k):
+            if 'user_id' not in session: return redirect('/login')
+            if session.get('role') != 'admin':
+                return jsonify({'error': 'Admin only'}), 403
             return f(*a, **k)
     return w
 
@@ -199,6 +211,10 @@ def groups_page(): return render_template('groups.html')
 @app.route('/group/<int:gid>')
 @login_req
 def group_detail_page(gid): return render_template('group_detail.html', group_id=gid)
+
+@app.route('/admin')
+@admin_req
+def admin_page(): return render_template('admin.html')
 
 # ─── AUTH API ───
 @app.route('/api/login', methods=['POST'])
@@ -630,6 +646,125 @@ def api_meme():
     pct = float(request.args.get('score',0)) / max(float(request.args.get('total',10)),1) * 100
     cat = 'god' if pct>=95 else 'great' if pct>=80 else 'good' if pct>=60 else 'ok' if pct>=40 else 'low'
     return jsonify({'meme': random.choice(RESULT_MEMES[cat]), 'category': cat, 'percentage': round(pct,1)})
+
+# ─── ADMIN APIs ───
+@app.route('/api/admin/overview')
+@admin_req
+def api_admin_overview():
+    c = get_db()
+    tu = c.execute("SELECT COUNT(*) as c FROM users").fetchone()['c']
+    ts = c.execute("SELECT COUNT(*) as c FROM users WHERE role='student'").fetchone()['c']
+    tt = c.execute("SELECT COUNT(*) as c FROM users WHERE role='teacher'").fetchone()['c']
+    ta = c.execute("SELECT COUNT(*) as c FROM users WHERE role='admin'").fetchone()['c']
+    te = c.execute("SELECT COUNT(*) as c FROM exams").fetchone()['c']
+    tsub = c.execute("SELECT COUNT(*) as c FROM submissions").fetchone()['c']
+    tg = c.execute("SELECT COUNT(*) as c FROM groups").fetchone()['c']
+    c.close()
+    return jsonify({'total_users':tu,'total_students':ts,'total_teachers':tt,'total_admins':ta,'total_exams':te,'total_submissions':tsub,'total_groups':tg})
+
+@app.route('/api/admin/users')
+@admin_req
+def api_admin_users():
+    c = get_db()
+    users = c.execute("""SELECT u.id,u.username,u.fullname,u.role,u.avatar,u.created_at,
+        (SELECT COUNT(*) FROM submissions WHERE student_id=u.id) as total_subs,
+        (SELECT COUNT(*) FROM exams WHERE created_by=u.id) as total_exams
+        FROM users u ORDER BY u.created_at DESC""").fetchall()
+    c.close()
+    return jsonify([dict(u) for u in users])
+
+@app.route('/api/admin/delete-user/<int:uid>', methods=['DELETE'])
+@admin_req
+def api_admin_delete_user(uid):
+    if uid == session['user_id']: return jsonify({'error':'Khong the xoa chinh minh'}),400
+    c = get_db()
+    u = c.execute("SELECT username FROM users WHERE id=?", (uid,)).fetchone()
+    if not u: c.close(); return jsonify({'error':'User not found'}),404
+    c.execute("DELETE FROM submissions WHERE student_id=?", (uid,))
+    c.execute("DELETE FROM group_members WHERE user_id=?", (uid,))
+    c.execute("DELETE FROM announcements WHERE author_id=?", (uid,))
+    c.execute("DELETE FROM exams WHERE created_by=?", (uid,))
+    c.execute("DELETE FROM users WHERE id=?", (uid,))
+    c.commit(); c.close()
+    return jsonify({'success':True})
+
+@app.route('/api/admin/change-role', methods=['POST'])
+@admin_req
+def api_admin_change_role():
+    d = request.json or {}
+    uid = d.get('user_id'); new_role = d.get('role')
+    if new_role not in ('student','teacher','admin'): return jsonify({'error':'Invalid role'}),400
+    if uid == session['user_id']: return jsonify({'error':'Khong the doi role chinh minh'}),400
+    avatars = {'student':'🎓','teacher':'👨‍🏫','admin':'👑'}
+    c = get_db()
+    c.execute("UPDATE users SET role=?,avatar=? WHERE id=?", (new_role, avatars.get(new_role,'🎓'), uid))
+    c.commit(); c.close()
+    return jsonify({'success':True})
+
+@app.route('/api/admin/all-submissions')
+@admin_req
+def api_admin_all_subs():
+    c = get_db()
+    subs = c.execute("""SELECT s.*,u.fullname as student_name,u.username,e.title as exam_title,e.subject,e.total_score 
+        FROM submissions s JOIN users u ON s.student_id=u.id JOIN exams e ON s.exam_id=e.id 
+        ORDER BY s.submitted_at DESC LIMIT 200""").fetchall()
+    c.close()
+    return jsonify([dict(s) for s in subs])
+
+# ─── IMAGE UPLOAD FOR ESSAY ───
+@app.route('/api/upload-answer-image', methods=['POST'])
+@login_req
+def api_upload_answer_image():
+    if 'image' not in request.files: return jsonify({'error':'No image'}),400
+    f = request.files['image']
+    import time
+    ext = (f.filename or 'img.jpg').rsplit('.',1)[-1].lower()
+    fn = f"ans_{session['user_id']}_{int(time.time())}.{ext}"
+    fp = os.path.join(app.config['UPLOAD_FOLDER'], fn)
+    f.save(fp)
+    return jsonify({'success':True,'url':f'/uploads/{fn}','filename':fn})
+
+@app.route('/uploads/<filename>')
+def serve_upload(filename):
+    from flask import send_from_directory
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+# ─── ANSWER FILE IMPORT ───
+@app.route('/api/import-answers', methods=['POST'])
+@teacher_req
+def api_import_answers():
+    if 'file' not in request.files: return jsonify({'error':'No file'}),400
+    f = request.files['file']
+    content = ''
+    fn = (f.filename or '').lower()
+    if fn.endswith('.txt') or fn.endswith('.csv'):
+        content = f.read().decode('utf-8', errors='ignore')
+    elif fn.endswith('.docx'):
+        import tempfile
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.docx')
+        f.save(tmp.name); tmp.close()
+        try:
+            from docx import Document
+            doc = Document(tmp.name)
+            content = '\n'.join([p.text for p in doc.paragraphs])
+        except: content = ''
+        os.unlink(tmp.name)
+    else:
+        content = f.read().decode('utf-8', errors='ignore')
+    # Parse answers
+    content = content.strip().upper()
+    # Try format: 1.A 2.B 3.C or 1A 2B 3C
+    import re
+    answers = {}
+    # Pattern: number followed by answer
+    pairs = re.findall(r'(\d+)\s*[.)\-:]\s*([ABCD])', content)
+    if pairs:
+        for num, ans in pairs: answers[int(num)] = ans
+    else:
+        # Just a string of ABCD
+        clean = re.sub(r'[^ABCDDS]', '', content)
+        for i, ch in enumerate(clean): answers[i+1] = ch
+    return jsonify({'success':True,'answers':answers,'total':len(answers),'raw':content[:500]})
 
 # ─── DATA ───
 RANKS = [(0,'Tân Binh','🐣','#9e9e9e','Mới bắt đầu hành trình!'),(10,'Đồng','🥉','#cd7f32','Chiến binh non trẻ!'),(20,'Bạc','🥈','#c0c0c0','Đang lên tay rồi đó!'),(30,'Vàng','🥇','#ffd700','Vàng 9999 luôn!'),(50,'Kim Cương','💎','#00bcd4','Sáng chói lóa mắt!'),(70,'Tinh Anh','🔮','#9c27b0','Cao thủ trong truyền thuyết!'),(90,'Cao Thủ','⚡','#ff5722','Thần đồng học tập!'),(150,'Ông Cố Nội','👑','#ff0000','Truyền thuyết sống!')]

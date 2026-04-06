@@ -1,0 +1,122 @@
+<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>X-Exam Admin Panel</title>
+    <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Segoe UI',sans-serif;background:#1a1a2e;color:#fff;min-height:100vh}
+    .nav{background:linear-gradient(135deg,#e74c3c,#c0392b);padding:12px 25px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100}
+    .nav a{color:#fff;text-decoration:none;padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600}.nav a:hover{background:rgba(255,255,255,.2)}
+    .container{max-width:1300px;margin:20px auto;padding:0 20px}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:25px}
+    .stat{background:rgba(255,255,255,.08);border-radius:14px;padding:20px;text-align:center;border:1px solid rgba(255,255,255,.1)}
+    .stat .num{font-size:32px;font-weight:800}.stat .label{font-size:12px;opacity:.7;margin-top:4px}
+    .stat.danger .num{color:#e74c3c}.stat.warn .num{color:#f39c12}.stat.ok .num{color:#27ae60}.stat.info .num{color:#3498db}
+    .tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+    .tab{padding:10px 24px;border-radius:10px;cursor:pointer;font-weight:700;font-size:14px;border:2px solid rgba(255,255,255,.2);background:transparent;color:#fff;transition:.3s}
+    .tab:hover{background:rgba(255,255,255,.1)}.tab.active{background:#e74c3c;border-color:#e74c3c}
+    .panel{display:none}.panel.active{display:block}
+    .search{width:100%;padding:12px 18px;border-radius:10px;border:2px solid rgba(255,255,255,.2);background:rgba(255,255,255,.05);color:#fff;font-size:14px;margin-bottom:15px}
+    .search:focus{border-color:#e74c3c;outline:none}.search::placeholder{color:rgba(255,255,255,.4)}
+    .filter-row{display:flex;gap:8px;margin-bottom:15px;flex-wrap:wrap}
+    .filter-btn{padding:6px 16px;border-radius:20px;border:1px solid rgba(255,255,255,.2);background:transparent;color:#fff;cursor:pointer;font-size:12px;font-weight:600;transition:.3s}
+    .filter-btn:hover,.filter-btn.active{background:#e74c3c;border-color:#e74c3c}
+    table{width:100%;border-collapse:collapse}
+    th{text-align:left;padding:12px;font-size:13px;opacity:.7;border-bottom:1px solid rgba(255,255,255,.1)}
+    td{padding:12px;font-size:14px;border-bottom:1px solid rgba(255,255,255,.05)}
+    tr:hover{background:rgba(255,255,255,.03)}
+    .role-badge{padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700}
+    .role-admin{background:#e74c3c;color:#fff}.role-teacher{background:#3498db;color:#fff}.role-student{background:#27ae60;color:#fff}
+    .btn-sm{padding:5px 12px;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:.3s;margin:2px}
+    .btn-del{background:#e74c3c;color:#fff}.btn-del:hover{background:#c0392b}
+    .btn-role{background:#3498db;color:#fff}
+    .empty{text-align:center;padding:40px;opacity:.5}
+    select{padding:5px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;font-size:12px}
+    @media(max-width:768px){table{font-size:12px}td,th{padding:8px 4px}.stat{padding:12px}.stat .num{font-size:24px}}
+    </style></head><body>
+    <div class="nav">
+    <div style="display:flex;align-items:center;gap:15px">
+    <a href="/dashboard" style="font-size:18px;font-weight:900">&#x1F680; X-EXAM</a>
+    <span style="background:rgba(255,255,255,.2);padding:4px 12px;border-radius:8px;font-size:12px;font-weight:700">&#x1F6E1; ADMIN</span>
+    </div>
+    <div><a href="/dashboard">&#x1F3E0; Trang chu</a> <a href="/api/logout">&#x1F6AA; Thoat</a></div>
+    </div>
+    <div class="container">
+    <h1 style="margin:20px 0;font-size:28px">&#x1F6E1; Admin Dashboard</h1>
+    <div class="stats" id="stats"></div>
+    <div class="tabs">
+    <div class="tab active" onclick="switchTab('users')">&#x1F465; Nguoi dung</div>
+    <div class="tab" onclick="switchTab('exams')">&#x1F4DA; De thi</div>
+    <div class="tab" onclick="switchTab('subs')">&#x1F4E8; Bai nop</div>
+    </div>
+    
+    <div class="panel active" id="panel-users">
+    <input class="search" id="searchUser" placeholder="&#x1F50D; Tim kiem theo ten, username..." oninput="filterUsers()">
+    <div class="filter-row">
+    <div class="filter-btn active" onclick="filterRole('all',this)">Tat ca</div>
+    <div class="filter-btn" onclick="filterRole('student',this)">&#x1F393; Hoc sinh</div>
+    <div class="filter-btn" onclick="filterRole('teacher',this)">&#x1F468;&#x200D;&#x1F3EB; Giao vien</div>
+    <div class="filter-btn" onclick="filterRole('admin',this)">&#x1F451; Admin</div>
+    </div>
+    <div style="overflow-x:auto" id="userTable"></div>
+    </div>
+    
+    <div class="panel" id="panel-exams"><div style="overflow-x:auto" id="examTable"></div></div>
+    <div class="panel" id="panel-subs"><div style="overflow-x:auto" id="subTable"></div></div>
+    </div>
+    
+    <script>
+    let allUsers=[],currentRoleFilter='all';
+    function switchTab(name){
+    document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['users','exams','subs'][i]==name));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    document.getElementById('panel-'+name).classList.add('active');
+    if(name=='subs')loadSubs();if(name=='exams')loadExams();
+    }
+    async function loadOverview(){
+    const r=await fetch('/api/admin/overview');const d=await r.json();
+    document.getElementById('stats').innerHTML=
+    `<div class="stat info"><div class="num">${d.total_users}</div><div class="label">Tong User</div></div>
+    <div class="stat ok"><div class="num">${d.total_students}</div><div class="label">Hoc sinh</div></div>
+    <div class="stat warn"><div class="num">${d.total_teachers}</div><div class="label">Giao vien</div></div>
+    <div class="stat danger"><div class="num">${d.total_admins}</div><div class="label">Admin</div></div>
+    <div class="stat info"><div class="num">${d.total_exams}</div><div class="label">De thi</div></div>
+    <div class="stat ok"><div class="num">${d.total_submissions}</div><div class="label">Bai nop</div></div>
+    <div class="stat warn"><div class="num">${d.total_groups}</div><div class="label">Nhom</div></div>`;
+    }
+    async function loadUsers(){const r=await fetch('/api/admin/users');allUsers=await r.json();renderUsers();}
+    function filterRole(role,el){currentRoleFilter=role;document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderUsers();}
+    function filterUsers(){renderUsers();}
+    function renderUsers(){
+    const q=document.getElementById('searchUser').value.toLowerCase();
+    let list=allUsers;
+    if(currentRoleFilter!='all')list=list.filter(u=>u.role==currentRoleFilter);
+    if(q)list=list.filter(u=>(u.fullname||'').toLowerCase().includes(q)||(u.username||'').toLowerCase().includes(q));
+    const el=document.getElementById('userTable');
+    if(!list.length){el.innerHTML='<div class="empty">Khong tim thay</div>';return;}
+    el.innerHTML='<table><tr><th>#</th><th></th><th>Ho ten</th><th>Username</th><th>Vai tro</th><th>Bai</th><th>De</th><th>Ngay DK</th><th>Hanh dong</th></tr>'+
+    list.map((u,i)=>`<tr><td>${i+1}</td><td style="font-size:24px">${u.avatar}</td><td><b>${u.fullname}</b></td><td><code>${u.username}</code></td>
+    <td><span class="role-badge role-${u.role}">${u.role}</span></td>
+    <td>${u.total_subs}</td><td>${u.total_exams}</td>
+    <td style="font-size:11px;opacity:.7">${(u.created_at||'').slice(0,16)}</td>
+    <td><select onchange="changeRole(${u.id},this.value)"><option value="">Doi role</option><option value="student">Hoc sinh</option><option value="teacher">Giao vien</option><option value="admin">Admin</option></select>
+    <button class="btn-sm btn-del" onclick="delUser(${u.id},'${u.username}')">&times;</button></td></tr>`).join('')+'</table>';
+    }
+    async function changeRole(uid,role){if(!role)return;if(!confirm('Doi role thanh '+role+'?'))return;
+    await fetch('/api/admin/change-role',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:uid,role})});loadUsers();loadOverview();}
+    async function delUser(uid,uname){if(!confirm('XOA user "'+uname+'" va tat ca du lieu?'))return;
+    await fetch('/api/admin/delete-user/'+uid,{method:'DELETE'});loadUsers();loadOverview();}
+    async function loadExams(){const r=await fetch('/api/exams');const data=await r.json();
+    document.getElementById('examTable').innerHTML='<table><tr><th>ID</th><th>Ten de</th><th>Mon</th><th>Cau hoi</th><th>Trang thai</th><th></th></tr>'+
+    data.map(e=>`<tr><td>${e.id}</td><td><b>${e.title}</b></td><td>${e.subject}</td><td>${e.question_count}</td>
+    <td style="color:${e.is_open?'#27ae60':'#e74c3c'}">${e.is_open?'Mo':'Dong'}</td>
+    <td><button class="btn-sm btn-del" onclick="delExam(${e.id})">Xoa</button></td></tr>`).join('')+'</table>';}
+    async function delExam(id){if(!confirm('Xoa de thi?'))return;await fetch('/api/exam/delete/'+id,{method:'DELETE'});loadExams();loadOverview();}
+    async function loadSubs(){const r=await fetch('/api/admin/all-submissions');const data=await r.json();
+    document.getElementById('subTable').innerHTML='<table><tr><th>#</th><th>Hoc sinh</th><th>De thi</th><th>Diem</th><th>D/S/T</th><th>TG</th><th>Ngay</th></tr>'+
+    data.map((s,i)=>`<tr><td>${i+1}</td><td><b>${s.student_name}</b><br><small>@${s.username}</small></td>
+    <td>${s.exam_title}<br><small>${s.subject}</small></td>
+    <td style="font-size:16px;font-weight:700;color:${s.score>=s.total_score*0.8?'#27ae60':s.score>=s.total_score*0.5?'#f39c12':'#e74c3c'}">${s.score}/${s.total_score}</td>
+    <td><span style="color:#27ae60">${s.total_correct}</span>/<span style="color:#e74c3c">${s.total_wrong}</span>/<span style="color:#888">${s.total_blank}</span></td>
+    <td>${Math.floor(s.time_spent/60)}p</td>
+    <td style="font-size:11px">${(s.submitted_at||'').slice(0,16)}</td></tr>`).join('')+'</table>';}
+    loadOverview();loadUsers();
+    </script></body></html>

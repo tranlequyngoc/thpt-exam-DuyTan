@@ -38,6 +38,10 @@
     /* Essay */
     .essay-input{width:100%;padding:14px;border:2px solid #ddd;border-radius:10px;font-size:14px;min-height:100px;resize:vertical;font-family:inherit;line-height:1.6}
     .essay-input:focus{border-color:#764ba2;outline:none}
+    .img-upload-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:linear-gradient(135deg,#27ae60,#2ecc71);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;margin-top:8px;transition:.3s}
+    .img-upload-btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(39,174,96,.3)}
+    .img-preview{margin-top:8px;border-radius:10px;overflow:hidden;border:2px solid #ddd;display:none}
+    .img-preview img{width:100%;max-height:300px;object-fit:contain;background:#f5f5f5}
     
     /* Nav dots */
     .q-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;padding:10px 15px 12px;box-shadow:0 -3px 15px rgba(0,0,0,0.1);z-index:99;display:flex;flex-direction:column;align-items:center;gap:8px}
@@ -64,7 +68,7 @@
     <script src="/static/js/mascot.js"></script>
     <script>
     const EID={{exam_id}};
-    let questions=[],answers={},timeLeft=0,timerInterval,startTime=Date.now();
+    let questions=[],answers={},essayImages={},timeLeft=0,timerInterval,startTime=Date.now();
     
     async function load(){
         const r=await fetch('/api/exam/'+EID);const d=await r.json();
@@ -132,7 +136,14 @@
             }
             else if(q.type==='essay'){
                 const saved=answers[q.id]||'';
-                optionsHtml=`<textarea class="essay-input" placeholder="Nhập câu trả lời của bạn..." onchange="setAns(${q.id},this.value)" oninput="setAns(${q.id},this.value)">${saved}</textarea>`;
+                const imgUrl=essayImages[q.id]||'';
+                optionsHtml=`<textarea class="essay-input" id="essay_${q.id}" placeholder="Nhap cau tra loi hoac chup anh bai lam..." onchange="setAns(${q.id},this.value)" oninput="setAns(${q.id},this.value)">${saved.replace(/<img[^>]*>/g,'')}</textarea>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                <button class="img-upload-btn" onclick="document.getElementById('imgInput_${q.id}').click()">&#x1F4F7; Chup anh / Upload anh bai lam</button>
+                <input type="file" id="imgInput_${q.id}" accept="image/*" capture="environment" style="display:none" onchange="uploadEssayImg(${q.id},this)">
+                <span id="imgStatus_${q.id}" style="font-size:12px;color:#888"></span>
+                </div>
+                <div class="img-preview" id="imgPrev_${q.id}" ${imgUrl?'style="display:block"':''}>${imgUrl?'<img src="'+imgUrl+'">':''}</div>`;
             }
             
             const displayContent=q._mainContent||q.content;
@@ -177,6 +188,25 @@
         if(allDone)document.getElementById('dot'+qid).classList.add('answered');
     }
     
+    async function uploadEssayImg(qid,input){
+        const file=input.files[0];if(!file)return;
+        const status=document.getElementById('imgStatus_'+qid);
+        status.textContent='Dang upload...';status.style.color='#f39c12';
+        const fd=new FormData();fd.append('image',file);
+        try{
+            const r=await fetch('/api/upload-answer-image',{method:'POST',body:fd});
+            const d=await r.json();
+            if(d.success){
+                essayImages[qid]=d.url;
+                const prev=document.getElementById('imgPrev_'+qid);
+                prev.style.display='block';prev.innerHTML='<img src="'+d.url+'">';
+                const txt=(answers[qid]||'').replace(/<img[^>]*>/g,'');
+                setAns(qid, txt+'<img src="'+d.url+'">');
+                status.textContent='Upload thanh cong!';status.style.color='#27ae60';
+            }else{status.textContent='Loi: '+d.error;status.style.color='#e74c3c';}
+        }catch(e){status.textContent='Loi upload!';status.style.color='#e74c3c';}
+    }
+
     function startTimer(){
         const el=document.getElementById('timer');
         timerInterval=setInterval(()=>{

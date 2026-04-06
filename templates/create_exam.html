@@ -57,7 +57,7 @@
     <label>Tên đề thi *</label>
     <input type="text" id="title" placeholder="VD: Đề thi thu Toan THPT 2026 - Lan 3">
     <div class="row">
-    <div><label>Mon</label><select id="subject"><option>Toan</option><option>Vat ly</option><option>Tin hoc</option><option>Hoa hoc</option><option>Tieng Anh</option><option>Sinh hoc</option></select></div>
+    <div><label>Mon</label><select id="subject"><option>Toan</option><option>Vat ly</option><option>Tin hoc</option><option>Hoa hoc</option><option>Tieng Anh</option><option>Sinh hoc</option><option>Ngu van</option><option>Lich su</option><option>Dia ly</option><option>GDCD</option><option>GD KT&PL</option><option>Cong nghe</option><option>Khac</option></select></div>
     <div><label>Thời gian (phút)</label><input type="number" id="timeLimit" value="90"></div>
     <div><label>Tổng điểm</label><input type="number" id="totalScore" value="10" step="0.5"></div>
     </div>
@@ -110,6 +110,24 @@
     <div id="keyPreview" style="margin-top:8px;font-size:12px;color:#555"></div>
     </div>
     
+    <!-- UPLOAD FILE ĐÁP ÁN -->
+    <div style="background:#e8eaf6;border-radius:12px;padding:16px;margin-bottom:18px;border:2px solid #7986cb">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+    <div>
+    <div style="display:flex;align-items:center;gap:10px">
+    <span style="font-size:20px">&#x1F4C1;</span>
+    <b style="color:#283593;font-size:14px">Nap dap an tu file</b>
+    </div>
+    <p style="color:#888;font-size:12px;margin-top:4px">Upload file .txt/.docx chua dap an (VD: 1.A 2.B 3.C hoac ABCADB...)</p>
+    </div>
+    <div>
+    <button class="btn" onclick="document.getElementById('ansFileInput').click()" style="padding:12px 20px;background:#283593;white-space:nowrap">&#x1F4C1; Chon file dap an</button>
+    <input type="file" id="ansFileInput" accept=".txt,.docx,.csv" style="display:none" onchange="uploadAnswerFile(this)">
+    </div>
+    </div>
+    <div id="ansFileResult" style="margin-top:8px;font-size:13px;color:#555"></div>
+    </div>
+
     <!-- AI TỰ CHỌN ĐÁP ÁN -->
     <div style="background:#fff3e0;border-radius:12px;padding:16px;margin-bottom:18px;border:2px solid #ffb74d">
     <div style="display:flex;justify-content:space-between;align-items:center">
@@ -310,6 +328,42 @@
     }
     
     
+    // Upload answer file
+    async function uploadAnswerFile(input) {
+        const file = input.files[0]; if (!file) return;
+        const msgEl = document.getElementById('ansFileResult');
+        msgEl.innerHTML = '<span style="color:#f39c12">Dang doc file...</span>';
+        const fd = new FormData(); fd.append('file', file);
+        try {
+            const r = await fetch('/api/import-answers', { method: 'POST', body: fd });
+            const d = await r.json();
+            if (d.success && d.answers) {
+                const entries = Object.entries(d.answers);
+                let applied = 0;
+                entries.forEach(([num, ans]) => {
+                    const idx = parseInt(num) - 1;
+                    if (idx >= 0 && idx < questions.length) {
+                        const q = questions[idx];
+                        if (q.type === 'multiple_choice' && 'ABCD'.includes(ans)) {
+                            q.correct_answer = ans; applied++;
+                        } else if (q.type === 'true_false' && 'DS'.includes(ans)) {
+                            let cur = (q.correct_answer || '').split('');
+                            while (cur.length < 4) cur.push('_');
+                            // For TF, accumulate answers
+                            q.correct_answer = ans; applied++;
+                        }
+                    }
+                });
+                renderQuestions();
+                msgEl.innerHTML = '<span style="color:#27ae60">&#x2705; Da nap ' + applied + '/' + entries.length + ' dap an tu file <b>' + file.name + '</b></span>';
+            } else {
+                msgEl.innerHTML = '<span style="color:#e74c3c">Khong doc duoc dap an tu file!</span>';
+            }
+        } catch (e) {
+            msgEl.innerHTML = '<span style="color:#e74c3c">Loi: ' + e.message + '</span>';
+        }
+    }
+
     // Apply answer key string
     function applyAnswerKey() {
         const key = document.getElementById('answerKey').value.toUpperCase().replace(/\s+/g, '');
