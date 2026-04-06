@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
     <title>X-Exam - Làm bài</title>
     <script>window.MathJax={tex:{inlineMath:[['$','$'],['\\(','\\)']],displayMath:[['$$','$$'],['\\[','\\]']],processEscapes:true},options:{skipHtmlTags:['script','noscript','style','textarea']},startup:{typeset:false}};</script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.min.js" async></script>
@@ -208,6 +208,11 @@
         document.getElementById('qNav').innerHTML=questions.map(q=>
             `<div class="q-dot ${answers[q.id]?'answered':''}" id="dot${q.id}" onclick="document.getElementById('q${q.id}').scrollIntoView({behavior:'smooth'})">${q.question_number}</div>`
         ).join('');
+        
+        // Render MathJax after content is updated
+        if(window.MathJax && window.MathJax.typesetPromise){
+            MathJax.typesetPromise().catch(e=>console.log('MathJax error:',e));
+        }
     }
     
     function setAns(qid,val){
