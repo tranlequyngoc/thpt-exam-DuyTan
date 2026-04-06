@@ -152,6 +152,7 @@ def init_db():
             total_blank INTEGER DEFAULT 0,
             time_spent INTEGER DEFAULT 0,
             teacher_comment TEXT DEFAULT '',
+            violations INTEGER DEFAULT 0,
             submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     CREATE TABLE IF NOT EXISTS groups (
@@ -226,6 +227,9 @@ def init_db():
         existing4 = [r[1] for r in c.execute("PRAGMA table_info(submissions)").fetchall()]
     if 'question_scores' not in existing4:
         try: c.execute("ALTER TABLE submissions ADD COLUMN question_scores TEXT DEFAULT '{}'")
+        except: pass
+    if 'violations' not in existing4:
+        try: c.execute("ALTER TABLE submissions ADD COLUMN violations INTEGER DEFAULT 0")
         except: pass
 
     pw = hashlib.sha256('admin123'.encode()).hexdigest()
@@ -327,6 +331,10 @@ def admin_page(): return render_template('admin.html')
 @app.route('/teacher-stats')
 @teacher_req
 def teacher_stats_page(): return render_template('teacher_stats.html')
+
+@app.route('/import-students')
+@teacher_req
+def import_students_page(): return render_template('import_students.html')
 
 @app.route('/static/sw.js')
 def sw_js():
@@ -521,8 +529,8 @@ def api_submit():
                 elif sa.upper() == ca.upper(): sc += q['score']; cor += 1
                 else: wr += 1
     
-    cur = c.execute("INSERT INTO submissions(student_id,exam_id,answers,score,total_correct,total_wrong,total_blank,time_spent) VALUES(?,?,?,?,?,?,?,?)",
-            (session['user_id'], eid, json.dumps(ans), round(sc, 2), cor, wr, bl, d.get('time_spent', 0)))
+    cur = c.execute("INSERT INTO submissions(student_id,exam_id,answers,score,total_correct,total_wrong,total_blank,time_spent,violations) VALUES(?,?,?,?,?,?,?,?,?)",
+            (session['user_id'], eid, json.dumps(ans), round(sc, 2), cor, wr, bl, d.get('time_spent', 0), d.get('violations', 0)))
     sid = cur.lastrowid
     c.commit(); c.close()
     return jsonify({'success': True, 'submission_id': sid, 'score': round(sc,2), 'correct': cor, 'wrong': wr, 'blank': bl})
@@ -909,6 +917,43 @@ def api_mark_read():
     c.execute("UPDATE notifications SET is_read=1 WHERE user_id=?", (session['user_id'],))
     c.commit(); c.close()
     return jsonify({'success': True})
+
+# ─── IMPORT STUDENTS ───
+@app.route('/api/admin/import-students', methods=['POST'])
+@teacher_req
+def api_import_students():
+    if 'file' not in request.files: return jsonify({'error':'No file'}),400
+    f = request.files['file']
+    results = []; errors = []
+    try:
+        from openpyxl import load_workbook
+        import io, tempfile
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx')
+        f.save(tmp.name); tmp.close()
+        wb = load_workbook(tmp.name); ws = wb.active
+        os.unlink(tmp.name)
+        c = get_db()
+        for i, row in enumerate(ws.iter_rows(min_row=2, values_only=True), 2):
+            if not row or not row[0]: continue
+            fullname = str(row[0] or '').strip()
+            username = str(row[1] or '').strip().lower().replace(' ','')
+            password = str(row[2] or '123456').strip()
+            role = str(row[3] or 'student').strip().lower()
+            if role not in ('student','teacher'): role = 'student'
+            if not fullname or not username:
+                errors.append(f'Dong {i}: Thieu ho ten hoac username'); continue
+            pw_hash = hashlib.sha256(password.encode()).hexdigest()
+            avatars = {'student':'🎓','teacher':'👨‍🏫'}
+            try:
+                c.execute("INSERT INTO users(username,password_hash,fullname,role,avatar,is_approved) VALUES(?,?,?,?,?,?)",
+                    (username, pw_hash, fullname, role, avatars.get(role,'🎓'), 1))
+                results.append({'fullname':fullname,'username':username,'password':password,'role':role})
+            except Exception as e:
+                errors.append(f'Dong {i}: {username} da ton tai')
+        c.commit(); c.close()
+    except Exception as e:
+        return jsonify({'error':str(e)}), 500
+    return jsonify({'success':True,'created':len(results),'errors':errors,'accounts':results})
 
 # ─── RESET PASSWORD ───
 @app.route('/api/admin/reset-password', methods=['POST'])

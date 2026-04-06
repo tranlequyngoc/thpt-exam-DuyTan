@@ -126,12 +126,13 @@
     <td><button class="btn-sm btn-del" onclick="delExam(${e.id})">Xoa</button></td></tr>`).join('')+'</table>';}
     async function delExam(id){if(!confirm('Xoa de thi?'))return;await fetch('/api/exam/delete/'+id,{method:'DELETE'});loadExams();loadOverview();}
     async function loadSubs(){const r=await fetch('/api/admin/all-submissions');const data=await r.json();
-    document.getElementById('subTable').innerHTML='<table><tr><th>#</th><th>Hoc sinh</th><th>De thi</th><th>Diem</th><th>D/S/T</th><th>TG</th><th>Ngay</th></tr>'+
+    document.getElementById('subTable').innerHTML='<table><tr><th>#</th><th>Hoc sinh</th><th>De thi</th><th>Diem</th><th>D/S/T</th><th>TG</th><th>Vi pham</th><th>Ngay</th></tr>'+
     data.map((s,i)=>`<tr><td>${i+1}</td><td><b>${s.student_name}</b><br><small>@${s.username}</small></td>
     <td>${s.exam_title}<br><small>${s.subject}</small></td>
     <td style="font-size:16px;font-weight:700;color:${s.score>=s.total_score*0.8?'#27ae60':s.score>=s.total_score*0.5?'#f39c12':'#e74c3c'}">${s.score}/${s.total_score}</td>
     <td><span style="color:#27ae60">${s.total_correct}</span>/<span style="color:#e74c3c">${s.total_wrong}</span>/<span style="color:#888">${s.total_blank}</span></td>
-    <td>${Math.floor(s.time_spent/60)}p</td>
+    <td>${Math.floor((s.time_spent||0)/60)}p</td>
+    <td style="color:${(s.violations||0)>0?'#e74c3c':'#27ae60'};font-weight:700">${s.violations||0} lan</td>
     <td style="font-size:11px">${(s.submitted_at||'').slice(0,16)}</td></tr>`).join('')+'</table>';}
     loadOverview();loadUsers();
     </script></body></html>

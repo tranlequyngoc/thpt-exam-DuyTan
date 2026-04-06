@@ -1,0 +1,99 @@
+<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>X-Exam - Import Hoc Sinh</title>
+    <style>
+    *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',sans-serif;background:#f0f2f5}
+    .nav{background:linear-gradient(135deg,#302b63,#24243e);color:#fff;padding:12px 25px;display:flex;justify-content:space-between;align-items:center}
+    .nav a{color:#fff;text-decoration:none;padding:6px 14px;border-radius:20px;font-size:13px}.nav a:hover{background:rgba(255,255,255,.2)}
+    .container{max-width:900px;margin:30px auto;padding:0 20px}
+    .card{background:#fff;border-radius:16px;padding:28px;box-shadow:0 4px 15px rgba(0,0,0,.08);margin-bottom:20px}
+    .card h2{color:#302b63;margin-bottom:16px;font-size:20px}
+    .upload-area{border:3px dashed #c5b8ff;border-radius:14px;padding:50px;text-align:center;cursor:pointer;transition:.3s;background:#f8f5ff;margin-bottom:16px}
+    .upload-area:hover{border-color:#302b63;background:#f0eaff}
+    .upload-area .icon{font-size:52px;margin-bottom:12px}
+    .btn{padding:12px 28px;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;transition:.3s}
+    .btn-primary{background:linear-gradient(135deg,#302b63,#5b51a5);color:#fff}
+    .btn-dl{background:#217346;color:#fff}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th,td{padding:10px 12px;border-bottom:1px solid #eee;text-align:left}
+    th{background:#f8f7ff;color:#302b63;font-weight:700}
+    .badge-ok{background:#e8f5e9;color:#27ae60;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700}
+    .badge-err{background:#ffebee;color:#e74c3c;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700}
+    .result-panel{display:none}
+    .template-box{background:#f8f7ff;border:2px solid #c5b8ff;border-radius:12px;padding:16px;font-family:monospace;font-size:13px;margin-bottom:16px}
+    </style></head><body>
+    <div class="nav"><a href="/dashboard">X-EXAM</a><h3>Import Danh Sach Hoc Sinh</h3><a href="/dashboard">Trang chu</a></div>
+    <div class="container">
+    <div class="card">
+    <h2>Huong dan</h2>
+    <p style="color:#666;margin-bottom:12px">Tao file Excel (.xlsx) theo mau sau, sau do upload len:</p>
+    <div class="template-box">
+    | Ho va ten       | Username    | Mat khau | Vai tro |<br>
+    | Nguyen Van A    | nguyenvana  | 123456   | student |<br>
+    | Tran Thi B      | tranthib    | 123456   | student |<br>
+    | Giao Vien C     | gvienC      | gv123    | teacher |
+    </div>
+    <p style="color:#888;font-size:13px">* Cot "Vai tro": student hoac teacher (mac dinh la student)<br>
+    * Neu khong dien mat khau, mac dinh la 123456<br>
+    * Row 1 la header, du lieu bat dau tu row 2</p>
+    <div style="margin-top:16px">
+    <button class="btn btn-dl" onclick="downloadTemplate()">Tai file mau Excel</button>
+    </div>
+    </div>
+    <div class="card">
+    <h2>Upload file Excel</h2>
+    <div class="upload-area" onclick="document.getElementById('fileIn').click()">
+    <div class="icon">📊</div>
+    <p style="font-size:17px;font-weight:600;margin-bottom:6px">Click chon hoac keo tha file .xlsx</p>
+    <p style="color:#888;font-size:13px">Chi chap nhan file Excel (.xlsx)</p>
+    <input type="file" id="fileIn" accept=".xlsx" style="display:none" onchange="uploadFile(this)">
+    </div>
+    <div id="uploadResult"></div>
+    </div>
+    <div class="card result-panel" id="resultPanel">
+    <h2>Ket qua Import</h2>
+    <div id="resultStats" style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap"></div>
+    <div id="errorList"></div>
+    <h3 style="color:#302b63;margin:16px 0 10px">Danh sach tai khoan da tao:</h3>
+    <div style="overflow-x:auto"><table id="resultTable">
+    <thead><tr><th>#</th><th>Ho ten</th><th>Username</th><th>Mat khau</th><th>Vai tro</th></tr></thead>
+    <tbody></tbody></table></div>
+    <button class="btn btn-dl" onclick="exportResult()" style="margin-top:14px">Xuat danh sach mat khau</button>
+    </div>
+    </div>
+    <script>
+    let importedAccounts=[];
+    async function uploadFile(input){
+    const file=input.files[0];if(!file)return;
+    const fd=new FormData();fd.append('file',file);
+    document.getElementById('uploadResult').innerHTML='<p style="color:#f39c12;margin:10px 0">Dang xu ly...</p>';
+    const r=await fetch('/api/admin/import-students',{method:'POST',body:fd});
+    const d=await r.json();
+    if(d.error){document.getElementById('uploadResult').innerHTML='<p style="color:#e74c3c">Loi: '+d.error+'</p>';return;}
+    importedAccounts=d.accounts||[];
+    document.getElementById('uploadResult').innerHTML='';
+    document.getElementById('resultPanel').style.display='block';
+    document.getElementById('resultStats').innerHTML=`
+    <div style="background:#e8f5e9;padding:14px 20px;border-radius:10px;text-align:center"><div style="font-size:28px;font-weight:800;color:#27ae60">${d.created}</div><div style="font-size:13px;color:#555">Tai khoan da tao</div></div>
+    <div style="background:#ffebee;padding:14px 20px;border-radius:10px;text-align:center"><div style="font-size:28px;font-weight:800;color:#e74c3c">${d.errors.length}</div><div style="font-size:13px;color:#555">Loi</div></div>`;
+    if(d.errors.length){
+    document.getElementById('errorList').innerHTML='<div style="background:#ffebee;border-radius:10px;padding:12px;margin-bottom:12px"><b style="color:#e74c3c">Cac loi:</b><ul style="margin-top:6px;padding-left:20px">'+d.errors.map(e=>'<li style="color:#c62828;font-size:13px">'+e+'</li>').join('')+'</ul></div>';
+    }
+    document.querySelector('#resultTable tbody').innerHTML=d.accounts.map((a,i)=>`<tr><td>${i+1}</td><td>${a.fullname}</td><td><code>${a.username}</code></td><td><code>${a.password}</code></td><td><span class="badge-${a.role=='student'?'ok':'err'}">${a.role}</span></td></tr>`).join('');
+    }
+    function downloadTemplate(){
+    const link=document.createElement('a');
+    link.href='data:text/plain;charset=utf-8,'+'Ho va ten,Username,Mat khau,Vai tro
+Nguyen Van A,nguyenvana,123456,student
+Tran Thi B,tranthib,123456,student';
+    link.download='mau_import_hocsinh.csv';link.click();
+    }
+    function exportResult(){
+    let csv='Ho ten,Username,Mat khau,Vai tro
+';
+    importedAccounts.forEach(a=>csv+=`${a.fullname},${a.username},${a.password},${a.role}
+`);
+    const link=document.createElement('a');
+    link.href='data:text/csv;charset=utf-8,﻿'+encodeURIComponent(csv);
+    link.download='danh_sach_taikhoan.csv';link.click();
+    }
+    </script></body></html>

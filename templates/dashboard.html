@@ -93,6 +93,7 @@
     <a href="/create-exam" id="createBtn" style="display:none">&#x270F; Tạo đề</a>
     <a href="/admin" id="adminBtn" style="display:none">&#x1F6E1; Admin</a>
     <a href="/teacher-stats" id="statsBtn" style="display:none">&#x1F4CA; Bieu do</a>
+    <a href="/import-students" id="importBtn" style="display:none">&#x1F4E5; Import HS</a>
     <div style="position:relative;display:inline-block">
       <button onclick="toggleNotif()" style="background:rgba(255,255,255,.2);border:none;color:#fff;padding:7px 12px;border-radius:20px;cursor:pointer;font-size:13px;font-weight:600">&#x1F514; <span id="notifBadge" style="display:none;background:#e74c3c;color:#fff;border-radius:50%;padding:1px 6px;font-size:11px">0</span></button>
       <div id="notifPanel" style="display:none;position:absolute;right:0;top:40px;width:300px;background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.15);z-index:999;max-height:350px;overflow-y:auto">
@@ -201,9 +202,10 @@ if(role=='admin'){document.getElementById('adminBtn').style.display='inline';}
                     ${bestHtml}
                 </div>
                 <div class="exam-actions">
-                    ${e.can_attempt?'<a class="btn btn-primary" href="/exam/'+e.id+'">&#x1F3AE; Làm bài</a>':'<span style="color:#e74c3c;font-weight:700">&#x26A0; Hết lần thi</span>'}
+                    ${e.can_attempt?'<a class="btn btn-primary" href="/exam/'+e.id+'">&#x1F3AE; Lam bai</a>':'<span style="color:#e74c3c;font-weight:700">&#x26A0; Het lan thi</span>'}
                     ${e.can_attempt&&e.max_attempts<999?'<small style="color:#f39c12">('+e.attempts_left+'/'+e.max_attempts+')</small>':''}
-                    ${(role=='teacher'||role=='admin')?'<button class="btn btn-danger btn-sm" onclick="delExam('+e.id+')">&#x1F5D1; Xóa</button>':''}
+                    <button class="btn btn-sm" onclick="showQR(${e.id},'${e.title.replace(/'/g,'')}')" style="background:#8e44ad;color:#fff">&#x1F4F1; QR</button>
+                    ${(role=='teacher'||role=='admin')?'<button class="btn btn-danger btn-sm" onclick="delExam('+e.id+')">&#x1F5D1; Xoa</button>':''}
                 </div>
             </div>`;
         }).join('');
@@ -339,10 +341,42 @@ if(role=='admin'){document.getElementById('adminBtn').style.display='inline';}
     if('serviceWorker' in navigator){
         navigator.serviceWorker.register('/static/sw.js').then(()=>console.log('SW registered')).catch(()=>{});
     }
-    if(role=='teacher'||role=='admin'){document.getElementById('statsBtn').style.display='inline';}
+    if(role=='teacher'||role=='admin'){document.getElementById('statsBtn').style.display='inline';document.getElementById('importBtn').style.display='inline';}
     </script>
     
     <!-- MASCOT -->
     <script src="/static/js/mascot.js"></script>
-    
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+
+    <!-- QR MODAL -->
+    <div id="qrModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:9999;display:none;align-items:center;justify-content:center">
+    <div style="background:#fff;border-radius:20px;padding:28px;text-align:center;max-width:340px;width:90%;position:relative">
+    <button onclick="document.getElementById('qrModal').style.display='none'" style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:22px;cursor:pointer;color:#888">&times;</button>
+    <div style="font-size:22px;font-weight:800;color:#302b63;margin-bottom:4px">QR Chia se de thi</div>
+    <p id="qrTitle" style="color:#888;font-size:13px;margin-bottom:16px"></p>
+    <canvas id="qrCanvas" style="border-radius:12px;border:3px solid #ede7f6"></canvas>
+    <p style="margin-top:12px;font-size:12px;color:#999">Hoc sinh quet QR bang dien thoai de vao lam bai</p>
+    <input id="qrLink" style="width:100%;margin-top:10px;padding:8px;border:2px solid #ddd;border-radius:8px;font-size:12px;text-align:center" readonly onclick="this.select()">
+    </div>
+    </div>
+
+    <script>
+    function showQR(examId,title){
+    const modal=document.getElementById('qrModal');
+    modal.style.display='flex';
+    document.getElementById('qrTitle').textContent=title;
+    const url=window.location.origin+'/exam/'+examId;
+    document.getElementById('qrLink').value=url;
+    const canvas=document.getElementById('qrCanvas');
+    if(window.QRCode){
+        QRCode.toCanvas(canvas,url,{width:220,margin:2,color:{dark:'#302b63',light:'#ffffff'}},()=>{});
+    }else{
+        canvas.getContext('2d').fillText('QR dang tai...',10,50);
+    }
+    }
+    window.addEventListener('click',e=>{
+    const m=document.getElementById('qrModal');
+    if(e.target===m)m.style.display='none';
+    });
+    </script>
 </body></html>

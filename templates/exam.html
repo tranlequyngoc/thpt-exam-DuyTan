@@ -1,5 +1,7 @@
 <!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
     <title>X-Exam - Làm bài</title>
+    <script>window.MathJax={tex:{inlineMath:[['$','$'],['\\(','\\)']],displayMath:[['$$','$$'],['\\[','\\]']],processEscapes:true},options:{skipHtmlTags:['script','noscript','style','textarea']},startup:{typeset:false}};</script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.min.js" async></script>
     <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:'Segoe UI',sans-serif;background:#f0f2f5}
@@ -8,6 +10,8 @@
     .timer{font-size:20px;font-weight:700;background:rgba(255,255,255,0.2);padding:8px 16px;border-radius:8px}
     .timer.warning{background:#e74c3c;animation:pulse 1s infinite}
     @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+    .anticheat-warning{position:fixed;top:0;left:0;right:0;z-index:9999;background:#e74c3c;color:#fff;padding:14px;text-align:center;font-size:15px;font-weight:700;display:none;animation:pulse 1s infinite}
+    .violation-badge{background:rgba(231,76,60,.3);padding:4px 10px;border-radius:8px;font-size:13px;margin-left:10px}
     .container{max-width:900px;margin:20px auto;padding:0 20px 180px}
     .q-card{background:#fff;border-radius:14px;padding:22px;margin-bottom:14px;box-shadow:0 3px 12px rgba(0,0,0,0.06);transition:.3s}
     .q-card:hover{box-shadow:0 5px 20px rgba(0,0,0,0.1)}
@@ -53,10 +57,14 @@
     .btn{padding:12px 50px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;transition:.3s;width:90%;max-width:360px;display:block;margin:0 auto}
     .btn:hover{transform:translateY(-2px);box-shadow:0 5px 20px rgba(102,126,234,0.4)}
     </style></head><body>
+    <div class="anticheat-warning" id="acWarning">⚠️ CANH BAO: Ban vua chuyen ra khoi bai thi! <span id="acCount"></span></div>
     <div class="nav">
     <a href="/dashboard">&#x1F680; X-EXAM</a>
     <h3 id="examTitle"></h3>
-    <div class="timer" id="timer">--:--</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="timer" id="timer">--:--</div>
+      <span class="violation-badge" id="violationBadge" style="display:none">&#x26A0; <span id="vCount">0</span> vi pham</span>
+    </div>
     </div>
     <div class="container" id="qContainer"></div>
     <div class="q-nav">
@@ -69,12 +77,50 @@
     <script>
     const EID={{exam_id}};
     let questions=[],answers={},essayImages={},timeLeft=0,timerInterval,startTime=Date.now();
+    let violations=0; const MAX_VIOLATIONS=5;
+
+    // ── ANTI-CHEAT ──
+    function recordViolation(reason){
+        violations++;
+        document.getElementById('vCount').textContent=violations;
+        document.getElementById('violationBadge').style.display='inline';
+        const warn=document.getElementById('acWarning');
+        document.getElementById('acCount').textContent=`(${violations}/${MAX_VIOLATIONS} lan - Con ${MAX_VIOLATIONS-violations} lan nua se tu dong nop bai)`;
+        warn.style.display='block';
+        setTimeout(()=>warn.style.display='none',4000);
+        if(violations>=MAX_VIOLATIONS){
+            warn.style.display='block';
+            warn.textContent='BAN DA VI PHAM QUA NHIEU LAN! BAI THI DANG DUOC NOP TU DONG...';
+            setTimeout(()=>submitExam(true),2000);
+        }
+    }
+    // Tab switch detection
+    document.addEventListener('visibilitychange',()=>{
+        if(document.hidden&&timeLeft>0)recordViolation('tab_switch');
+    });
+    // Window blur
+    let blurTimer;
+    window.addEventListener('blur',()=>{
+        blurTimer=setTimeout(()=>{if(timeLeft>0)recordViolation('window_blur')},1500);
+    });
+    window.addEventListener('focus',()=>clearTimeout(blurTimer));
+    // Disable right-click & copy
+    document.addEventListener('contextmenu',e=>e.preventDefault());
+    document.addEventListener('copy',e=>{e.preventDefault();});
+    // Disable dev tools shortcuts
+    document.addEventListener('keydown',e=>{
+        if(e.key==='F12'||(e.ctrlKey&&e.shiftKey&&['I','J','C'].includes(e.key))||(e.ctrlKey&&e.key==='u'))
+            e.preventDefault();
+    });
     
     async function load(){
         const r=await fetch('/api/exam/'+EID);const d=await r.json();
+        if(d.error){alert(d.error);location.href='/dashboard';return;}
         document.getElementById('examTitle').textContent=d.exam.title;
         questions=d.questions;timeLeft=d.exam.time_limit*60;
         render();startTimer();
+        // Render MathJax after questions load
+        if(window.MathJax)window.MathJax.typesetPromise&&window.MathJax.typesetPromise();
     }
     
     function render(){
@@ -218,8 +264,8 @@
         },1000);
     }
     
-    async function submitExam(){
-        if(!confirm('Bạn có chắc muốn nộp bài?'))return;
+    async function submitExam(auto=false){
+        if(!auto&&!confirm('Bạn có chắc muốn nộp bài?'))return;
         clearInterval(timerInterval);
         const spent=Math.floor((Date.now()-startTime)/1000);
         
@@ -231,7 +277,7 @@
         }
         
         const r=await fetch('/api/submit',{method:'POST',headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({exam_id:EID,answers:finalAnswers,time_spent:spent})});
+            body:JSON.stringify({exam_id:EID,answers:finalAnswers,time_spent:spent,violations})});
         const d=await r.json();
         if(d.success)location.href='/result/'+d.submission_id;
         else alert('Lỗi: '+(d.error||'Unknown'));
