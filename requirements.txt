@@ -2,3 +2,4 @@ flask
 gunicorn
 PyPDF2
 python-docx
+psycopg2-binary

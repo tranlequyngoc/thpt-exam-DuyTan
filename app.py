@@ -18,7 +18,65 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(os.path.dirname(DB), exist_ok=True)
 
 # ─── DB ───
+DATABASE_URL = os.environ.get('DATABASE_URL', '')
+
+class PGCursor:
+    def __init__(self, cur):
+        self._c = cur; self.lastrowid = None
+    def fetchone(self):
+        try:
+            r = self._c.fetchone()
+            return dict(r) if r else None
+        except: return None
+    def fetchall(self):
+        try: return [dict(r) for r in self._c.fetchall()]
+        except: return []
+
+class PGConn:
+    def __init__(self):
+        import psycopg2, psycopg2.extras
+        self._pg = psycopg2; self._extras = psycopg2.extras
+        self._conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+    def execute(self, sql, params=None):
+        cur = self._conn.cursor(cursor_factory=self._extras.RealDictCursor)
+        sql = sql.replace('?', '%s')
+        is_ignore = bool(re.search(r'INSERT\s+OR\s+IGNORE', sql, re.IGNORECASE))
+        if is_ignore:
+            sql = re.sub(r'INSERT\s+OR\s+IGNORE', 'INSERT', sql, flags=re.IGNORECASE)
+            sql = sql.rstrip().rstrip(';') + ' ON CONFLICT DO NOTHING'
+        is_insert = sql.strip().upper().startswith('INSERT') and not is_ignore
+        if is_insert and 'RETURNING' not in sql.upper():
+            sql = sql.rstrip().rstrip(';') + ' RETURNING id'
+        try:
+            cur.execute(sql, tuple(params) if params else None)
+        except self._pg.Error as e:
+            self._conn.rollback()
+            print(f"PG Error: {e}")
+            cur = self._conn.cursor(cursor_factory=self._extras.RealDictCursor)
+            return PGCursor(cur)
+        wrapper = PGCursor(cur)
+        if is_insert:
+            try:
+                row = cur.fetchone()
+                wrapper.lastrowid = row['id'] if row else None
+            except: pass
+        return wrapper
+    def executescript(self, sql):
+        sql = re.sub(r'INTEGER\s+PRIMARY\s+KEY\s+AUTOINCREMENT', 'SERIAL PRIMARY KEY', sql, flags=re.IGNORECASE)
+        self._conn.autocommit = True
+        cur = self._conn.cursor()
+        for stmt in sql.split(';'):
+            stmt = stmt.strip()
+            if not stmt: continue
+            try: cur.execute(stmt)
+            except Exception as e: print(f"PG skip: {str(e)[:80]}")
+        self._conn.autocommit = False
+    def commit(self): self._conn.commit()
+    def close(self): self._conn.close()
+
 def get_db():
+    if DATABASE_URL:
+        return PGConn()
     c = sqlite3.connect(DB)
     c.row_factory = sqlite3.Row
     c.execute("PRAGMA foreign_keys=ON")
@@ -106,19 +164,31 @@ def init_db():
     );
     """)
     # Migrate exams table if missing columns
-    existing = [r[1] for r in c.execute("PRAGMA table_info(exams)").fetchall()]
+    if DATABASE_URL:
+        existing = [r['column_name'] for r in c.execute("SELECT column_name FROM information_schema.columns WHERE table_name='exams'").fetchall()]
+    else:
+        existing = [r[1] for r in c.execute("PRAGMA table_info(exams)").fetchall()]
     for col, defval in [('source',"TEXT DEFAULT ''"), ('is_open',"INTEGER DEFAULT 1"),
                              ('open_at',"TEXT DEFAULT NULL"), ('close_at',"TEXT DEFAULT NULL")]:
             if col not in existing:
-                c.execute(f"ALTER TABLE exams ADD COLUMN {col} {defval}")
+                try: c.execute(f"ALTER TABLE exams ADD COLUMN {col} {defval}")
+                except: pass
     # Migrate submissions
-    existing2 = [r[1] for r in c.execute("PRAGMA table_info(submissions)").fetchall()]
+    if DATABASE_URL:
+        existing2 = [r['column_name'] for r in c.execute("SELECT column_name FROM information_schema.columns WHERE table_name='submissions'").fetchall()]
+    else:
+        existing2 = [r[1] for r in c.execute("PRAGMA table_info(submissions)").fetchall()]
     if 'teacher_comment' not in existing2:
-            c.execute("ALTER TABLE submissions ADD COLUMN teacher_comment TEXT DEFAULT ''")
+            try: c.execute("ALTER TABLE submissions ADD COLUMN teacher_comment TEXT DEFAULT ''")
+            except: pass
     # Migrate users
-    existing3 = [r[1] for r in c.execute("PRAGMA table_info(users)").fetchall()]
+    if DATABASE_URL:
+        existing3 = [r['column_name'] for r in c.execute("SELECT column_name FROM information_schema.columns WHERE table_name='users'").fetchall()]
+    else:
+        existing3 = [r[1] for r in c.execute("PRAGMA table_info(users)").fetchall()]
     if 'avatar' not in existing3:
-            c.execute("ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT '🎓'")
+            try: c.execute("ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT '🎓'")
+            except: pass
 
     pw = hashlib.sha256('admin123'.encode()).hexdigest()
     pw2 = hashlib.sha256('123456'.encode()).hexdigest()
