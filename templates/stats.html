@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>X-Exam - Thống kê</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',sans-serif;background:#f0f2f5}
+.nav{background:linear-gradient(135deg,#302b63,#24243e);color:#fff;padding:15px 30px;display:flex;justify-content:space-between;align-items:center}
+.nav a{color:#fff;text-decoration:none;padding:8px 16px;border-radius:8px}.nav a:hover{background:rgba(255,255,255,0.2)}
+.container{max-width:1000px;margin:20px auto;padding:0 20px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:25px}
+.stat{background:#fff;border-radius:12px;padding:25px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,0.08)}
+.stat .num{font-size:36px;font-weight:700;color:#302b63}.stat .label{color:#888;margin-top:5px}
+.card{background:#fff;border-radius:12px;padding:25px;margin-bottom:15px;box-shadow:0 2px 10px rgba(0,0,0,0.08)}
+h2{color:#302b63;margin-bottom:15px}
+table{width:100%;border-collapse:collapse}
+th,td{padding:12px;text-align:left;border-bottom:1px solid #eee}
+th{background:#f8f7ff;color:#302b63;font-weight:700}
+tr:hover{background:#f5f5f5}
+.bar{height:20px;border-radius:10px;background:#e0e0e0;position:relative;overflow:hidden}
+.bar-fill{height:100%;border-radius:10px;background:linear-gradient(90deg,#302b63,#5b51a5);transition:width .5s}
+</style></head><body>
+<div class="nav"><a href="/dashboard">X-EXAM</a><h3>Thống kê học tập</h3><a href="/dashboard">Về trang chủ</a></div>
+<div class="container">
+<div class="stats" id="overview"></div>
+<div class="card"><h2>Điểm theo môn</h2><div id="bySubject"></div></div>
+<div class="card"><h2>Lịch sử làm bài</h2><table><thead><tr><th>Đề thi</th><th>Mon</th><th>Diem</th><th>Đúng</th><th>Sai</th><th>Thoi gian</th></tr></thead><tbody id="history"></tbody></table></div>
+</div>
+<script>
+async function load(){
+    const r=await fetch('/api/stats');const d=await r.json();
+    document.getElementById('overview').innerHTML=`
+        <div class="stat"><div class="num">${d.total_exams}</div><div class="label">Đề đã làm</div></div>
+        <div class="stat"><div class="num">${d.total_submissions}</div><div class="label">Tổng lần nộp</div></div>
+        <div class="stat"><div class="num">${d.avg_score}</div><div class="label">Điểm trung bình</div></div>`;
+    
+    document.getElementById('bySubject').innerHTML=d.by_subject.map(s=>{
+        const pct=Math.round((s.avg_score/10)*100);
+        return`<div style="margin-bottom:15px">
+            <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+                <b>${s.subject}</b><span>TB: ${s.avg_score.toFixed(1)} | Cao nhat: ${s.best_score} | ${s.attempts} lan</span>
+            </div>
+            <div class="bar"><div class="bar-fill" style="width:${pct}%"></div></div>
+        </div>`;
+    }).join('')||'<p>Chưa có dữ liệu</p>';
+    
+    document.getElementById('history').innerHTML=d.recent.map(r=>`
+        <tr>
+            <td><a href="/result/${r.id}">${r.title}</a></td>
+            <td>${r.subject}</td>
+            <td><b>${r.score}/${r.total_score}</b></td>
+            <td style="color:#27ae60">${r.total_correct}</td>
+            <td style="color:#e74c3c">${r.total_wrong}</td>
+            <td>${Math.floor(r.time_spent/60)}p ${r.time_spent%60}s</td>
+        </tr>`).join('')||'<tr><td colspan="6">Chưa có dữ liệu</td></tr>';
+}
+load();
+</script><script src="/static/js/mascot.js"></script>
+</body></html>

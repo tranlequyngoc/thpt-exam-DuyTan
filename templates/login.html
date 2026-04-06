@@ -1,0 +1,84 @@
+<!DOCTYPE html><html lang="vi"><head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>X-Exam - Dang nhap</title>
+    <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Segoe UI',sans-serif;min-height:100vh;background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);display:flex;align-items:center;justify-content:center;overflow:hidden}
+    .stars{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none}
+    .star{position:absolute;background:#fff;border-radius:50%;animation:twinkle 3s infinite}
+    @keyframes twinkle{0%,100%{opacity:.2}50%{opacity:1}}
+    .card{background:rgba(255,255,255,.97);border-radius:24px;padding:44px 40px;width:420px;box-shadow:0 30px 80px rgba(0,0,0,.4);position:relative;z-index:1;animation:slideUp .5s ease}
+    @keyframes slideUp{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
+    .icon{font-size:56px;text-align:center;margin-bottom:12px;animation:bounce 2s ease-in-out infinite;display:block}
+    @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+    h1{text-align:center;font-size:32px;font-weight:900;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px}
+    .sub{text-align:center;color:#888;font-size:14px;margin-bottom:24px}
+    .tabs{display:flex;border-radius:12px;overflow:hidden;border:2px solid #667eea;margin-bottom:22px}
+    .tab{flex:1;padding:11px;text-align:center;cursor:pointer;background:#f5f5ff;font-weight:700;font-size:14px;transition:.3s}
+    .tab.active{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
+    label{display:block;margin-bottom:5px;font-weight:600;color:#555;font-size:13px}
+    input,select{width:100%;padding:13px 15px;border:2px solid #e0e0e0;border-radius:11px;margin-bottom:14px;font-size:15px;transition:.3s}
+    input:focus,select:focus{border-color:#667eea;outline:none;box-shadow:0 0 0 3px rgba(102,126,234,.15)}
+    .btn-login{width:100%;padding:15px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer;transition:.3s}
+    .btn-login:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(102,126,234,.45)}
+    .msg{padding:12px;border-radius:10px;margin-bottom:14px;font-size:14px;font-weight:600;display:none}
+    .msg.err{display:block;background:#ffebee;color:#c62828}
+    .msg.ok{display:block;background:#e8f5e9;color:#2e7d32}
+    .ranks{text-align:center;margin-top:18px;font-size:11px;color:#aaa;line-height:2}
+    .rc{display:inline-block;margin:2px;padding:2px 8px;border-radius:12px;background:#f5f5ff;font-size:11px}
+    #regFields{display:none}
+    </style></head><body>
+    <div class="stars" id="st"></div>
+    <div class="card">
+    <span class="icon">&#x1F680;</span>
+    <h1>X-EXAM</h1>
+    <p class="sub">&#x2728; He thong luyen thi THPT mien phi</p>
+    <div class="tabs">
+    <div class="tab active" id="t1" onclick="sw('login')">&#x1F511; Dang nhap</div>
+    <div class="tab" id="t2" onclick="sw('reg')">&#x1F4DD; Dang ky</div>
+    </div>
+    <div id="msg" class="msg"></div>
+    <form onsubmit="return go(event)">
+    <div id="regFields">
+    <label>Ho va ten</label><input id="fn" placeholder="Nguyen Van A">
+    <label>Ban la</label>
+    <select id="rl">
+    <option value="student">&#x1F393; Hoc sinh</option>
+    <option value="teacher">&#x1F468;&#x200D;&#x1F3EB; Giao vien</option>
+    </select>
+    </div>
+    <label>Tai khoan</label><input id="un" placeholder="username" required>
+    <label>Mat khau</label><input id="pw" type="password" placeholder="..." required>
+    <button class="btn-login" id="sb">&#x1F511; DANG NHAP</button>
+    </form>
+    <div class="ranks">
+    &#x1F3C5; Rank: 
+    <span class="rc">&#x1F423; Tan Binh</span><span class="rc">&#x1F949; Dong</span>
+    <span class="rc">&#x1F948; Bac</span><span class="rc">&#x1F947; Vang</span>
+    <span class="rc">&#x1F48E; Kim Cuong</span><span class="rc">&#x1F451; Ong Co Noi</span>
+    </div>
+    </div>
+    <script>
+    const sc=document.getElementById('st');
+    for(let i=0;i<80;i++){const s=document.createElement('div');s.className='star';s.style.cssText='width:'+(Math.random()*3+1)+'px;height:'+(Math.random()*3+1)+'px;top:'+Math.random()*100+'%;left:'+Math.random()*100+'%;animation-delay:'+Math.random()*3+'s;animation-duration:'+(2+Math.random()*3)+'s';sc.appendChild(s)}
+    let mode='login';
+    function sw(m){mode=m;document.getElementById('t1').className='tab'+(m=='login'?' active':'');document.getElementById('t2').className='tab'+(m=='reg'?' active':'');document.getElementById('regFields').style.display=m=='reg'?'block':'none';document.getElementById('sb').innerHTML=m=='login'?'&#x1F511; DANG NHAP':'&#x1F4DD; DANG KY';document.getElementById('msg').className='msg'}
+    async function go(e){
+        e.preventDefault();
+        const u=document.getElementById('un').value,p=document.getElementById('pw').value;
+        const msg=document.getElementById('msg');
+        if(mode=='login'){
+            const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
+            const d=await r.json();
+            if(d.success){msg.className='msg ok';msg.textContent='Dang nhap thanh cong!';setTimeout(()=>location.href='/dashboard',500)}
+            else{msg.className='msg err';msg.textContent=d.error}
+        }else{
+            const fn=document.getElementById('fn').value,rl=document.getElementById('rl').value;
+            if(!fn){msg.className='msg err';msg.textContent='Nhap ho ten!';return}
+            const r=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p,fullname:fn,role:rl})});
+            const d=await r.json();
+            if(d.success){msg.className='msg ok';msg.textContent='Dang ky thanh cong!';sw('login')}
+            else{msg.className='msg err';msg.textContent=d.error}
+        }
+    }
+    </script></body></html>

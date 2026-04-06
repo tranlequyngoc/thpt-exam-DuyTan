@@ -1,0 +1,108 @@
+<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>X-Exam - Giáo viên xem bai</title>
+    <style>
+    *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',sans-serif;background:#f0f2f5}
+    .nav{background:linear-gradient(135deg,#302b63,#24243e);color:#fff;padding:15px 30px;display:flex;justify-content:space-between;align-items:center}
+    .nav a{color:#fff;text-decoration:none;padding:8px 16px;border-radius:8px}.nav a:hover{background:rgba(255,255,255,0.2)}
+    .container{max-width:1100px;margin:20px auto;padding:0 20px}
+    h1{color:#302b63;margin-bottom:20px}
+    .filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+    .filters select,.filters input{padding:8px 12px;border:2px solid #ddd;border-radius:8px;font-size:14px}
+    table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.08)}
+    th,td{padding:12px 15px;text-align:left;border-bottom:1px solid #eee;font-size:14px}
+    th{background:#302b63;color:#fff;font-weight:600}
+    tr:hover{background:#f8f7ff}
+    .score{font-weight:700;font-size:16px}
+    .score-high{color:#27ae60}.score-mid{color:#f39c12}.score-low{color:#e74c3c}
+    .btn-sm{padding:6px 12px;background:#302b63;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px}
+    .btn-sm:hover{background:#24243e}
+    .btn-view{background:#3498db}
+    .comment-box{display:none;margin-top:8px}
+    .comment-box textarea{width:100%;padding:8px;border:2px solid #ddd;border-radius:6px;font-size:13px;resize:vertical}
+    .badge{padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
+    .badge-pass{background:#e8f5e9;color:#27ae60}
+    .badge-fail{background:#ffebee;color:#e74c3c}
+    .stats-row{display:flex;gap:15px;margin-bottom:20px}
+    .stat-card{background:#fff;padding:20px;border-radius:12px;flex:1;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
+    .stat-card .num{font-size:28px;font-weight:700;color:#302b63}
+    .stat-card .label{color:#888;font-size:13px;margin-top:4px}
+    </style></head><body>
+    <div class="nav"><a href="/dashboard">X-EXAM</a><h3>Giáo viên - Xem bài làm</h3><a href="/dashboard">Về trang chủ</a></div>
+    <div class="container">
+    <h1>Danh sách bài làm của học sinh</h1>
+    <div class="stats-row" id="statsRow"></div>
+    <div class="filters">
+    <select id="filterSubject" onchange="filterSubs()"><option value="">-- Tat ca mon --</option></select>
+    <select id="filterExam" onchange="filterSubs()"><option value="">-- Tat ca de --</option></select>
+    <input type="text" id="filterName" placeholder="Tim hoc sinh..." oninput="filterSubs()">
+    </div>
+    <table><thead><tr><th>#</th><th>Học sinh</th><th>Đề thi</th><th>Mon</th><th>Diem</th><th>D/S/T</th><th>Thoi gian</th><th>Ngay</th><th>Hanh dong</th></tr></thead>
+    <tbody id="subList"></tbody></table>
+    </div>
+    <script>
+    let allSubs=[];
+    async function load(){
+        const r=await fetch('/api/teacher/submissions');allSubs=await r.json();
+        // Populate filters
+        const subjects=[...new Set(allSubs.map(s=>s.subject))];
+        const exams=[...new Set(allSubs.map(s=>s.exam_title))];
+        document.getElementById('filterSubject').innerHTML='<option value="">-- Tat ca mon --</option>'+subjects.map(s=>'<option>'+s+'</option>').join('');
+        document.getElementById('filterExam').innerHTML='<option value="">-- Tat ca de --</option>'+exams.map(e=>'<option>'+e+'</option>').join('');
+        // Stats
+        const total=allSubs.length;
+        const avgScore=total?allSubs.reduce((a,b)=>a+b.score,0)/total:0;
+        const passRate=total?allSubs.filter(s=>s.score>=5).length/total*100:0;
+        document.getElementById('statsRow').innerHTML=`
+            <div class="stat-card"><div class="num">${total}</div><div class="label">Tổng bài nộp</div></div>
+            <div class="stat-card"><div class="num">${avgScore.toFixed(1)}</div><div class="label">Điểm TB</div></div>
+            <div class="stat-card"><div class="num">${passRate.toFixed(0)}%</div><div class="label">Tỉ lệ đạt (>=5)</div></div>`;
+        filterSubs();
+    }
+    function filterSubs(){
+        const sub=document.getElementById('filterSubject').value;
+        const exam=document.getElementById('filterExam').value;
+        const name=document.getElementById('filterName').value.toLowerCase();
+        let data=allSubs;
+        if(sub)data=data.filter(s=>s.subject==sub);
+        if(exam)data=data.filter(s=>s.exam_title==exam);
+        if(name)data=data.filter(s=>s.student_name.toLowerCase().includes(name)||s.username.toLowerCase().includes(name));
+        renderSubs(data);
+    }
+    function renderSubs(data){
+        const el=document.getElementById('subList');
+        el.innerHTML=data.map((s,i)=>{
+            const sc=s.score;const ts=s.total_score||10;
+            const cls=sc>=ts*0.7?'score-high':sc>=ts*0.5?'score-mid':'score-low';
+            const badge=sc>=5?'<span class="badge badge-pass">Đạt</span>':'<span class="badge badge-fail">Chưa đạt</span>';
+            const mins=Math.floor((s.time_spent||0)/60);const secs=(s.time_spent||0)%60;
+            return`<tr>
+                <td>${i+1}</td>
+                <td><b>${s.student_name}</b><br><small style="color:#888">${s.username}</small></td>
+                <td>${s.exam_title}</td><td>${s.subject}</td>
+                <td><span class="score ${cls}">${sc}/${ts}</span> ${badge}</td>
+                <td style="color:#27ae60">${s.total_correct}D</td>
+                <td>${mins}p${secs}s</td>
+                <td style="font-size:12px;color:#888">${(s.submitted_at||'').slice(0,16)}</td>
+                <td>
+                    <a class="btn-sm btn-view" href="/result/${s.id}" target="_blank">Xem</a>
+                    <button class="btn-sm" onclick="toggleComment(${s.id})">Nhận xét</button>
+                    <div class="comment-box" id="cmt${s.id}">
+                        <textarea id="cmtText${s.id}" rows="2" placeholder="Nhập nhận xét...">${s.teacher_comment||''}</textarea>
+                        <button class="btn-sm" onclick="saveComment(${s.id})" style="margin-top:4px">Lưu</button>
+                    </div>
+                </td></tr>`;
+        }).join('');
+    }
+    function toggleComment(id){
+        const el=document.getElementById('cmt'+id);
+        el.style.display=el.style.display=='none'||!el.style.display?'block':'none';
+    }
+    async function saveComment(id){
+        const text=document.getElementById('cmtText'+id).value;
+        const r=await fetch('/api/teacher/comment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({submission_id:id,comment:text})});
+        const d=await r.json();
+        if(d.success)alert('Đã lưu nhận xét!');
+    }
+    load();
+    </script><script src="/static/js/mascot.js"></script>
+</body></html>

@@ -1,0 +1,117 @@
+<!DOCTYPE html><html lang="vi"><head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>X-Exam - Nhom hoc</title>
+    <style>
+    *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',sans-serif;background:#f0f2f5}
+    .nav{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:12px 24px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100}
+    .nav a{color:#fff;text-decoration:none;padding:6px 13px;border-radius:20px;font-size:13px;font-weight:600;transition:.25s}.nav a:hover{background:rgba(255,255,255,.2)}
+    .container{max-width:1000px;margin:20px auto;padding:0 20px}
+    .grid{display:grid;grid-template-columns:2fr 1fr;gap:18px}
+    .card{background:#fff;border-radius:16px;padding:22px;box-shadow:0 4px 18px rgba(0,0,0,.07);margin-bottom:14px;animation:fadeIn .4s ease}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+    h2{color:#333;margin-bottom:14px;font-size:18px}h3{color:#667eea;font-size:16px;margin-bottom:8px}
+    label{display:block;margin-bottom:4px;font-weight:600;color:#555;font-size:13px}
+    input,select,textarea{width:100%;padding:10px 13px;border:2px solid #e0e0e0;border-radius:10px;font-size:14px;transition:.25s;margin-bottom:8px}
+    input:focus,select:focus,textarea:focus{border-color:#667eea;outline:none}
+    .btn{padding:9px 18px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:.25s;text-decoration:none;display:inline-flex;align-items:center;gap:5px}
+    .btn:hover{transform:translateY(-1px)}.btn-primary{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}.btn-sm{padding:5px 12px;font-size:11px}
+    .ann-card{border-radius:12px;padding:16px;margin-bottom:12px;border-left:4px solid #667eea;background:#f8f7ff;transition:.3s}
+    .ann-card:hover{background:#f0eeff}
+    .ann-exam{background:#e8f5e9;border-radius:8px;padding:10px 14px;margin-top:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+    .member-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#f5f5ff;border-radius:20px;font-size:13px;margin:4px}
+    .teacher-chip{background:#fff3e0}
+    .code-big{font-family:monospace;font-size:24px;font-weight:900;letter-spacing:6px;background:#ede7f6;color:#4527a0;padding:10px 20px;border-radius:12px;text-align:center;margin:10px 0}
+    .msg{padding:10px;border-radius:8px;margin:8px 0;font-size:14px;font-weight:600;display:none}
+    .msg.ok{display:block;background:#e8f5e9;color:#2e7d32}.msg.err{display:block;background:#ffebee;color:#c62828}
+    </style></head><body>
+    <div class="nav">
+    <a href="/dashboard">&#x1F680; X-EXAM</a>
+    <div><a href="/groups">&#x2190; Nhom cua toi</a> <a href="/dashboard">&#x1F3E0; Trang chu</a></div>
+    </div>
+    <div class="container">
+    <div id="groupHeader" style="margin-bottom:18px;animation:fadeIn .4s ease">
+    <h1 id="groupName" style="font-size:24px;color:#333;margin-bottom:4px">Dang tai...</h1>
+    <p id="groupDesc" style="color:#888;font-size:14px"></p>
+    </div>
+    <div class="grid">
+    <div>
+    <div class="card" id="announceForm" style="display:none">
+    <h2>&#x1F4E2; Dang thong bao moi</h2>
+    <label>Tieu de</label><input id="annTitle" placeholder="VD: Lich thi cuoi ky">
+    <label>Noi dung</label><textarea id="annContent" rows="3" placeholder="Noi dung..."></textarea>
+    <label>Dinh kem de thi</label>
+    <select id="annExam" onchange="checkSched()"><option value="">-- Khong dinh kem --</option></select>
+    <div id="schedDiv" style="display:none"><label>Thoi gian mo de</label><input type="datetime-local" id="pinAt"></div>
+    <button class="btn btn-primary" onclick="postAnn()">&#x1F4E4; Dang thong bao</button>
+    <div id="annMsg" class="msg"></div>
+    </div>
+    <h2>&#x1F4EC; Thong bao</h2>
+    <div id="annList"></div>
+    </div>
+    <div>
+    <div class="card">
+    <h3>&#x1F511; Ma moi vao nhom</h3>
+    <div class="code-big" id="invCode">...</div>
+    <p style="color:#888;font-size:12px;text-align:center">Chia se ma nay cho hoc sinh</p>
+    </div>
+    <div class="card">
+    <h3>&#x1F465; Thanh vien (<span id="memCount">0</span>)</h3>
+    <div id="memberList"></div>
+    </div>
+    </div>
+    </div>
+    </div>
+    <script>
+    const GID={{group_id}};
+    const role='{{session.role}}';
+    
+    if(role=='teacher'||role=='admin'){
+        document.getElementById('announceForm').style.display='block';
+        loadExamsSelect();
+    }
+    
+    async function loadExamsSelect(){
+        const r=await fetch('/api/exams');const data=await r.json();
+        const sel=document.getElementById('annExam');
+        data.forEach(e=>{const o=document.createElement('option');o.value=e.id;o.textContent=e.title;sel.appendChild(o)});
+    }
+    
+    function checkSched(){document.getElementById('schedDiv').style.display=document.getElementById('annExam').value?'block':'none'}
+    
+    async function load(){
+        const r=await fetch('/api/group/'+GID);const d=await r.json();
+        const g=d.group;
+        document.getElementById('groupName').textContent=g.name+(g.subject?' - '+g.subject:'');
+        document.getElementById('groupDesc').textContent=g.description||'';
+        document.getElementById('invCode').textContent=g.invite_code;
+        document.getElementById('memCount').textContent=d.members.length;
+        document.getElementById('memberList').innerHTML=d.members.map(m=>
+            '<div class="member-chip '+(m.role=='teacher'?'teacher-chip':'')+'">'+(m.avatar||'')+(m.role=='teacher'?' (GV) ':' ')+m.fullname+'</div>'
+        ).join('');
+        const al=document.getElementById('annList');
+        if(!d.announcements.length){al.innerHTML='<div style="text-align:center;padding:30px;color:#888">Chua co thong bao</div>';return}
+        al.innerHTML=d.announcements.map(a=>`
+            <div class="ann-card">
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+                    <div><b>${a.author_name}</b></div>
+                    <div style="color:#888;font-size:12px">${(a.created_at||'').slice(0,16)}</div>
+                </div>
+                <h3 style="color:#333;font-size:15px;margin-bottom:6px">${a.title}</h3>
+                <p style="color:#555;font-size:14px;line-height:1.5">${a.content}</p>
+                ${a.exam_id?'<div class="ann-exam"><span>&#x1F4DD; De thi dinh kem</span>'+(a.pin_exam_at?'<span style="color:#e65100;font-size:12px">Mo luc: '+a.pin_exam_at.slice(0,16)+'</span>':'')+'<a href="/exam/'+a.exam_id+'" class="btn btn-primary btn-sm">Lam bai</a></div>':''}
+            </div>`).join('');
+    }
+    
+    async function postAnn(){
+        const title=document.getElementById('annTitle').value;
+        const content=document.getElementById('annContent').value;
+        if(!title||!content){alert('Nhap du thong tin!');return}
+        const r=await fetch('/api/group/'+GID+'/announce',{method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({title,content,exam_id:document.getElementById('annExam').value||null,pin_exam_at:document.getElementById('pinAt').value||null})});
+        const d=await r.json();
+        const msg=document.getElementById('annMsg');
+        if(d.success){msg.className='msg ok';msg.textContent='Da dang thong bao!';document.getElementById('annTitle').value='';document.getElementById('annContent').value='';load()}
+        else{msg.className='msg err';msg.textContent=d.error}
+    }
+    load();
+    </script></body></html>

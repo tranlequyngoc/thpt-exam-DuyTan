@@ -1,0 +1,159 @@
+<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>X-Exam - Kết quả</title>
+    <style>
+    *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',sans-serif;background:#f0f2f5}
+    .nav{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:12px 25px;display:flex;justify-content:space-between;align-items:center}
+    .nav a{color:#fff;text-decoration:none;padding:6px 14px;border-radius:20px;font-size:13px}.nav a:hover{background:rgba(255,255,255,0.2)}
+    .container{max-width:900px;margin:20px auto;padding:0 20px}
+    .meme-card{background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:20px;padding:40px;text-align:center;margin-bottom:20px;color:#fff;position:relative;overflow:hidden}
+    .meme-emoji{font-size:80px;margin-bottom:15px;animation:bounce 1s ease infinite}
+    @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-15px)}}
+    .meme-text{font-size:28px;font-weight:800;margin-bottom:10px;text-shadow:0 0 30px rgba(255,215,0,0.5)}
+    .meme-sub{font-size:16px;opacity:0.8}
+    .score-card{background:#fff;border-radius:20px;padding:30px;text-align:center;margin-bottom:20px;box-shadow:0 6px 25px rgba(0,0,0,0.1)}
+    .score-big{font-size:72px;font-weight:800;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .score-detail{display:flex;justify-content:center;gap:30px;margin-top:15px;flex-wrap:wrap}
+    .score-detail .item{text-align:center;min-width:70px}.score-detail .num{font-size:28px;font-weight:800}
+    .correct-num{color:#27ae60}.wrong-num{color:#e74c3c}.blank-num{color:#888}
+    .rank-progress-mini{background:#f0f0f0;border-radius:10px;padding:15px 20px;margin:15px 0;text-align:center}
+    .rank-bar{height:8px;background:#e0e0e0;border-radius:8px;overflow:hidden;margin-top:8px}
+    .rank-fill{height:100%;border-radius:8px;background:linear-gradient(90deg,#667eea,#ffd700);transition:width 1s}
+    
+    .q-card{background:#fff;border-radius:14px;padding:18px;margin-bottom:12px;box-shadow:0 2px 10px rgba(0,0,0,0.05);transition:.3s}
+    .q-card:hover{box-shadow:0 4px 20px rgba(0,0,0,0.1)}
+    .q-card.correct{border-left:5px solid #27ae60}
+    .q-card.wrong{border-left:5px solid #e74c3c}
+    .q-card.blank{border-left:5px solid #ccc}
+    .q-num{font-weight:700;color:#764ba2;margin-bottom:5px;display:flex;justify-content:space-between}
+    .q-result-icon{font-size:18px}
+    .q-content{margin-bottom:10px;white-space:pre-wrap;line-height:1.6;font-size:14px}
+    .opt{padding:8px 12px;margin:4px 0;border-radius:8px;font-size:13px;transition:.3s}
+    .opt.correct-ans{background:#e8f5e9;border:1px solid #81c784;font-weight:600}
+    .opt.wrong-pick{background:#ffebee;border:1px solid #e57373;text-decoration:line-through}
+    .opt.student-correct{background:#c8e6c9;border:2px solid #27ae60;font-weight:700}
+    .explain{background:#f5f0ff;padding:12px;border-radius:10px;margin-top:10px;font-size:13px;color:#555;border-left:3px solid #764ba2}
+    .actions-bar{text-align:center;padding:20px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+    .btn{padding:12px 24px;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:.3s}
+    .btn:hover{transform:translateY(-2px)}
+    .btn-primary{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
+    .btn-outline{background:#fff;color:#764ba2;border:2px solid #764ba2}
+    .confetti{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999}
+    </style></head><body>
+    <div class="nav"><a href="/dashboard">&#x1F680; X-EXAM</a><h3 id="examTitle"></h3><a href="/dashboard">&#x1F3E0; Về trang chủ</a></div>
+    <div class="container">
+    <div class="meme-card" id="memeCard"><div class="meme-emoji">&#x1F3AF;</div><div class="meme-text">Dang tinh điểm...</div></div>
+    <div class="score-card" id="scoreCard"></div>
+    <div class="rank-progress-mini" id="rankMini"></div>
+    <div class="actions-bar">
+    <a class="btn btn-primary" href="/dashboard">&#x1F3E0; Về trang chủ</a>
+    <a class="btn btn-outline" href="" id="retryBtn">&#x1F504; Làm lại</a>
+    <a class="btn btn-outline" href="/leaderboard">&#x1F451; Xếp hạng</a>
+    </div>
+    <h2 style="margin:20px 0;color:#333">&#x1F4CB; Chi tiết bài làm</h2>
+    <div id="qList"></div>
+    </div>
+    <canvas class="confetti" id="confetti"></canvas>
+    <script src="/static/js/mascot.js"></script>
+    <script>
+    const SID={{submission_id}};
+    
+    async function load(){
+        const r=await fetch('/api/result/'+SID);const d=await r.json();
+        const sub=d.submission,ex=d.exam,qs=d.questions,sa=d.student_answers;
+        
+        document.getElementById('examTitle').textContent=ex.title;
+        document.getElementById('retryBtn').href='/exam/'+ex.id;
+        
+        // Score card
+        document.getElementById('scoreCard').innerHTML=`
+            <div class="score-big">${sub.score}/${ex.total_score}</div>
+            <div class="score-detail">
+                <div class="item"><div class="num correct-num">${sub.total_correct}</div><div>&#x2705; Đúng</div></div>
+                <div class="item"><div class="num wrong-num">${sub.total_wrong}</div><div>&#x274C; Sai</div></div>
+                <div class="item"><div class="num blank-num">${sub.total_blank}</div><div>&#x2B1C; Trống</div></div>
+            </div>
+            <p style="margin-top:12px;color:#888;font-size:13px">&#x23F0; ${Math.floor(sub.time_spent/60)} phút ${sub.time_spent%60} giây</p>`;
+        
+        // Meme
+        const mr=await fetch('/api/result-meme?score='+sub.score+'&total='+ex.total_score);
+        const mm=await mr.json();
+        const memeEl=document.getElementById('memeCard');
+        const colors={god:'#ffd700',great:'#4ecdc4',good:'#667eea',ok:'#f39c12',low:'#888'};
+        memeEl.style.background=`linear-gradient(135deg,${colors[mm.category]||'#667eea'},#1a1a2e)`;
+        memeEl.innerHTML=`<div class="meme-emoji">${mm.meme.emoji}</div><div class="meme-text">${mm.meme.text}</div><div class="meme-sub">${mm.percentage}% dung</div>`;
+        
+        // Confetti for high scores
+        if(mm.percentage >= 80) launchConfetti();
+        
+        // Mascot reaction
+        if(mm.percentage >= 80) setTimeout(()=>mascotSay('TUYET VOI! Dinh cua dinh!',5000),2000);
+        else if(mm.percentage >= 50) setTimeout(()=>mascotSay('Kha lam! Cay them nhe!',5000),2000);
+        else setTimeout(()=>mascotSay('Khong sao, lam lai la len điểm!',5000),2000);
+        
+        // Rank progress
+        const rr=await fetch('/api/my-rank');const rank=await rr.json();
+        const rmEl=document.getElementById('rankMini');
+        const nextText=rank.next_rank?'Con '+(rank.next_rank.need-rank.total_subs)+' de nua la len '+rank.next_rank.icon+' '+rank.next_rank.name:'&#x1F451; Da dat cap cao nhat!';
+        rmEl.innerHTML=`<div style="font-size:14px">${rank.icon} <b>${rank.name}</b> | ${nextText}</div><div class="rank-bar"><div class="rank-fill" style="width:${rank.progress}%"></div></div>`;
+        
+        // Questions detail
+        document.getElementById('qList').innerHTML=qs.map(q=>{
+            const myAns=(sa[q.id]||'').toUpperCase();
+            const correctAns=(q.correct_answer||'').toUpperCase();
+            const isCorrect=myAns&&myAns==correctAns;
+            const isBlank=!myAns;
+            const cls=isBlank?'blank':(isCorrect?'correct':'wrong');
+            const icon=isBlank?'&#x2B1C;':(isCorrect?'&#x2705;':'&#x274C;');
+            
+            let optsHtml='';
+            if(q.type=='multiple_choice'){
+                ['A','B','C','D'].forEach(o=>{
+                    const val=q['option_'+o.toLowerCase()];if(!val)return;
+                    let c='opt';
+                    if(o==correctAns&&o==myAns) c+=' student-correct';
+                    else if(o==correctAns) c+=' correct-ans';
+                    else if(o==myAns&&!isCorrect) c+=' wrong-pick';
+                    optsHtml+=`<div class="${c}"><b>${o}.</b> ${val}</div>`;
+                });
+            }else{
+                optsHtml=`<div class="opt">Ban tra loi: <b>${myAns||'(trong)'}</b> | Đáp án: <b>${correctAns}</b></div>`;
+            }
+            
+            return`<div class="q-card ${cls}">
+                <div class="q-num"><span>Cau ${q.question_number} (${q.score} điểm)</span><span class="q-result-icon">${icon}</span></div>
+                <div class="q-content">${q.content}</div>
+                ${optsHtml}
+                ${q.explanation?'<div class="explain">&#x1F4A1; '+q.explanation+'</div>':''}
+            </div>`;
+        }).join('');
+    }
+    
+    // Simple confetti
+    function launchConfetti(){
+        const canvas=document.getElementById('confetti');
+        const ctx=canvas.getContext('2d');
+        canvas.width=window.innerWidth;canvas.height=window.innerHeight;
+        const pieces=[];const colors=['#ff6b6b','#ffd700','#4ecdc4','#667eea','#ff9ff3','#27ae60'];
+        for(let i=0;i<150;i++){
+            pieces.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height-canvas.height,
+                w:Math.random()*10+5,h:Math.random()*6+3,
+                color:colors[Math.floor(Math.random()*colors.length)],
+                speed:Math.random()*3+2,drift:Math.random()*2-1,rot:Math.random()*360});
+        }
+        let frame=0;
+        function draw(){
+            if(frame>200){canvas.style.display='none';return}
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            pieces.forEach(p=>{
+                p.y+=p.speed;p.x+=p.drift;p.rot+=2;
+                ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot*Math.PI/180);
+                ctx.fillStyle=p.color;ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);
+                ctx.restore();
+            });
+            frame++;requestAnimationFrame(draw);
+        }
+        draw();
+    }
+    
+    load();
+    </script></body></html>

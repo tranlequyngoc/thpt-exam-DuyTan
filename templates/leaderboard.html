@@ -1,0 +1,56 @@
+<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>X-Exam - Vua Trí Tuệ</title>
+    <style>
+    *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',sans-serif;background:#0f0c29}
+    .nav{background:linear-gradient(135deg,#302b63,#24243e);color:#fff;padding:15px 30px;display:flex;justify-content:space-between;align-items:center}
+    .nav a{color:#fff;text-decoration:none;padding:8px 16px;border-radius:8px}.nav a:hover{background:rgba(255,255,255,0.2)}
+    .container{max-width:1200px;margin:20px auto;padding:0 20px}
+    h1{text-align:center;color:#ffd700;font-size:36px;margin:30px 0 10px;text-shadow:0 0 20px rgba(255,215,0,0.5)}
+    .subtitle{text-align:center;color:#aaa;margin-bottom:30px;font-size:16px}
+    .boards{display:grid;grid-template-columns:repeat(auto-fit,minmax(350px,1fr));gap:20px;margin-bottom:40px}
+    .board{background:rgba(255,255,255,0.05);border-radius:16px;padding:25px;border:1px solid rgba(255,255,255,0.1);backdrop-filter:blur(10px)}
+    .board h2{color:#fff;text-align:center;margin-bottom:20px;font-size:20px}
+    .board .icon{font-size:40px;text-align:center;margin-bottom:10px}
+    .rank-item{display:flex;align-items:center;gap:12px;padding:12px;margin:6px 0;border-radius:10px;background:rgba(255,255,255,0.03);transition:.3s}
+    .rank-item:hover{background:rgba(255,255,255,0.08)}
+    .rank-num{width:35px;height:35px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0}
+    .rank-1{background:linear-gradient(135deg,#ffd700,#ffaa00);color:#000;box-shadow:0 0 15px rgba(255,215,0,0.5)}
+    .rank-2{background:linear-gradient(135deg,#c0c0c0,#a0a0a0);color:#000}
+    .rank-3{background:linear-gradient(135deg,#cd7f32,#a0522d);color:#fff}
+    .rank-other{background:rgba(255,255,255,0.1);color:#fff}
+    .rank-info{flex:1}
+    .rank-name{color:#fff;font-weight:600;font-size:15px}
+    .rank-stats{color:#888;font-size:12px;margin-top:2px}
+    .rank-value{color:#ffd700;font-weight:700;font-size:18px;text-align:right}
+    .crown{font-size:20px}
+    </style></head><body>
+    <div class="nav"><a href="/dashboard">X-EXAM</a><h3 style="color:#ffd700">Vua Trí Tuệ</h3><a href="/dashboard">Về trang chủ</a></div>
+    <div class="container">
+    <h1>&#x1F451; VUA TRI TUE &#x1F451;</h1>
+    <p class="subtitle">Bảng xếp hạng những học sinh xuất sắc nhất!</p>
+    <div class="boards">
+    <div class="board" id="b1"><div class="icon">&#x1F525;</div><h2>VUA LÀM BÀI</h2><p style="color:#888;text-align:center;margin-bottom:15px">Nhiều lần làm bài nhất</p><div id="list1"></div></div>
+    <div class="board" id="b2"><div class="icon">&#x2B50;</div><h2>VUA ĐIỂM CAO</h2><p style="color:#888;text-align:center;margin-bottom:15px">Điểm trung bình cao nhất</p><div id="list2"></div></div>
+    <div class="board" id="b3"><div class="icon">&#x1F3C6;</div><h2>ĐỈNH CAO</h2><p style="color:#888;text-align:center;margin-bottom:15px">Lam nhieu + điểm cao</p><div id="list3"></div></div>
+    </div>
+    </div>
+    <script>
+    function rankClass(i){return i<1?'rank-1':i<2?'rank-2':i<3?'rank-3':'rank-other'}
+    function crown(i){return i==0?'&#x1F451;':i==1?'&#x1F948;':i==2?'&#x1F949;':''}
+    function renderBoard(elId,data,valueKey,valueLabel){
+        const el=document.getElementById(elId);
+        if(!data||!data.length){el.innerHTML='<p style="color:#666;text-align:center">Chưa có dữ liệu</p>';return}
+        el.innerHTML=data.map((r,i)=>{
+            let val=valueKey=='total_subs'?r.total_subs+' lan':(typeof r[valueKey]=='number'?r[valueKey].toFixed(1):r[valueKey]);
+            return`<div class="rank-item"><div class="rank-num ${rankClass(i)}">${i+1}</div><div class="rank-info"><div class="rank-name"><span class="crown">${crown(i)}</span> ${r.fullname}</div><div class="rank-stats">${r.total_subs} lan | TB: ${(r.avg_score||0).toFixed(1)} | Max: ${r.best||0}</div></div><div class="rank-value">${val}</div></div>`
+        }).join('');
+    }
+    async function load(){
+        const r=await fetch('/api/leaderboard');const d=await r.json();
+        renderBoard('list1',d.king_count,'total_subs','lan');
+        renderBoard('list2',d.king_score,'avg_score','điểm');
+        renderBoard('list3',d.king_elite,'elite_score','điểm');
+    }
+    load();
+    </script><script src="/static/js/mascot.js"></script>
+</body></html>

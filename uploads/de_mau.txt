@@ -1,0 +1,17 @@
+Cau 1. Nguyen ham cua ham so f(x) = 3x^2 + 2x la:
+A. x^3 + x^2 + C
+B. 6x + 2 + C
+C. x^3 + x + C
+D. 3x^3 + 2x^2 + C
+
+Cau 2. Gia tri cua tich phan I = tich phan tu 0 den 1 (3x^2 + 1)dx bang:
+A. 1
+B. 2
+C. 3
+D. 4
+
+Cau 3. Vecto nao la vecto phap tuyen cua mat phang 2x - 3y + z - 5 = 0?
+A. n = (2; -3; 1)
+B. n = (2; -3; -5)
+C. n = (-3; 1; -5)
+D. n = (2; 3; 1)

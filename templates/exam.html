@@ -1,0 +1,206 @@
+<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>X-Exam - Làm bài</title>
+    <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Segoe UI',sans-serif;background:#f0f2f5}
+    .nav{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:12px 25px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100}
+    .nav a{color:#fff;text-decoration:none}
+    .timer{font-size:20px;font-weight:700;background:rgba(255,255,255,0.2);padding:8px 16px;border-radius:8px}
+    .timer.warning{background:#e74c3c;animation:pulse 1s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+    .container{max-width:900px;margin:20px auto;padding:0 20px 100px}
+    .q-card{background:#fff;border-radius:14px;padding:22px;margin-bottom:14px;box-shadow:0 3px 12px rgba(0,0,0,0.06);transition:.3s}
+    .q-card:hover{box-shadow:0 5px 20px rgba(0,0,0,0.1)}
+    .q-num{color:#764ba2;font-weight:700;font-size:15px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+    .q-type{font-size:11px;padding:3px 10px;border-radius:12px;font-weight:600}
+    .type-mc{background:#e3f2fd;color:#1565c0}
+    .type-tf{background:#fff3e0;color:#e65100}
+    .type-essay{background:#fce4ec;color:#c62828}
+    .q-content{font-size:14px;margin-bottom:14px;line-height:1.7;white-space:pre-wrap}
+    
+    /* MC options */
+    .mc-options label{display:block;padding:12px 16px;margin:5px 0;border:2px solid #eee;border-radius:10px;cursor:pointer;transition:.3s;font-size:14px}
+    .mc-options label:hover{border-color:#764ba2;background:#f8f5ff}
+    .mc-options input:checked+span{color:#764ba2;font-weight:700}
+    .mc-options label:has(input:checked){border-color:#764ba2;background:#f0eaff}
+    .mc-options input{margin-right:10px}
+    
+    /* TF options */
+    .tf-grid{display:grid;gap:8px}
+    .tf-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fafafa;border-radius:10px;border:1px solid #eee}
+    .tf-label{flex:1;font-size:13px;line-height:1.5}
+    .tf-btns{display:flex;gap:6px;flex-shrink:0}
+    .tf-btn{padding:6px 14px;border:2px solid #ddd;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;transition:.3s;background:#fff}
+    .tf-btn:hover{border-color:#764ba2}
+    .tf-btn.selected-d{background:#27ae60;color:#fff;border-color:#27ae60}
+    .tf-btn.selected-s{background:#e74c3c;color:#fff;border-color:#e74c3c}
+    
+    /* Essay */
+    .essay-input{width:100%;padding:14px;border:2px solid #ddd;border-radius:10px;font-size:14px;min-height:100px;resize:vertical;font-family:inherit;line-height:1.6}
+    .essay-input:focus{border-color:#764ba2;outline:none}
+    
+    /* Nav dots */
+    .q-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;padding:12px 15px;box-shadow:0 -3px 15px rgba(0,0,0,0.1);display:flex;justify-content:center;gap:5px;flex-wrap:wrap;z-index:99}
+    .q-dot{width:34px;height:34px;border-radius:50%;border:2px solid #ddd;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;font-weight:600;transition:.3s}
+    .q-dot:hover{border-color:#764ba2}
+    .q-dot.answered{background:#764ba2;color:#fff;border-color:#764ba2}
+    .submit-bar{text-align:center;padding:20px}
+    .btn{padding:14px 40px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;transition:.3s}
+    .btn:hover{transform:translateY(-2px);box-shadow:0 5px 20px rgba(102,126,234,0.4)}
+    </style></head><body>
+    <div class="nav">
+    <a href="/dashboard">&#x1F680; X-EXAM</a>
+    <h3 id="examTitle"></h3>
+    <div class="timer" id="timer">--:--</div>
+    </div>
+    <div class="container" id="qContainer"></div>
+    <div class="submit-bar"><button class="btn" onclick="submitExam()">&#x1F4E8; NỘP BÀI</button></div>
+    <div class="q-nav" id="qNav"></div>
+    <script src="/static/js/mascot.js"></script>
+    <script>
+    const EID={{exam_id}};
+    let questions=[],answers={},timeLeft=0,timerInterval,startTime=Date.now();
+    
+    async function load(){
+        const r=await fetch('/api/exam/'+EID);const d=await r.json();
+        document.getElementById('examTitle').textContent=d.exam.title;
+        questions=d.questions;timeLeft=d.exam.time_limit*60;
+        render();startTimer();
+    }
+    
+    function render(){
+        const c=document.getElementById('qContainer');
+        c.innerHTML=questions.map((q,i)=>{
+            const typeLabel=q.type==='true_false'?'Đúng/Sai':(q.type==='essay'?'Tự luận':'Trắc nghiệm');
+            const typeCls=q.type==='true_false'?'type-tf':(q.type==='essay'?'type-essay':'type-mc');
+            
+            let optionsHtml='';
+            
+            if(q.type==='multiple_choice'){
+                optionsHtml='<div class="mc-options">';
+                ['A','B','C','D'].forEach(o=>{
+                    const val=q['option_'+o.toLowerCase()];
+                    if(!val)return;
+                    optionsHtml+=`<label><input type="radio" name="q${q.id}" value="${o}" onchange="setAns(${q.id},'${o}')"><span>${o}. ${val}</span></label>`;
+                });
+                optionsHtml+='</div>';
+            }
+            else if(q.type==='true_false'){
+                // Split content into sub-questions a), b), c), d)
+                const lines=q.content.split('\n').filter(l=>l.trim());
+                const mainQ=[];const subs=[];
+                lines.forEach(l=>{
+                    const m=l.trim().match(/^([abcd])\)\s*(.+)/i);
+                    if(m)subs.push({letter:m[1].toLowerCase(),text:m[2]});
+                    else mainQ.push(l);
+                });
+                
+                optionsHtml='<div class="tf-grid">';
+                if(subs.length>0){
+                    subs.forEach((s,si)=>{
+                        const checked=answers[q.id]?answers[q.id][si]:'';
+                        optionsHtml+=`<div class="tf-row">
+                            <div class="tf-label"><b>${s.letter})</b> ${s.text}</div>
+                            <div class="tf-btns">
+                                <div class="tf-btn ${checked==='D'?'selected-d':''}" onclick="setTF(${q.id},${si},'D',this)">Đúng</div>
+                                <div class="tf-btn ${checked==='S'?'selected-s':''}" onclick="setTF(${q.id},${si},'S',this)">Sai</div>
+                            </div>
+                        </div>`;
+                    });
+                }else{
+                    // No sub-questions detected, show 4 generic
+                    for(let si=0;si<4;si++){
+                        const labels=['a','b','c','d'];
+                        const checked=answers[q.id]?answers[q.id][si]:'';
+                        optionsHtml+=`<div class="tf-row">
+                            <div class="tf-label"><b>${labels[si]})</b> Ý ${labels[si]}</div>
+                            <div class="tf-btns">
+                                <div class="tf-btn ${checked==='D'?'selected-d':''}" onclick="setTF(${q.id},${si},'D',this)">Đúng</div>
+                                <div class="tf-btn ${checked==='S'?'selected-s':''}" onclick="setTF(${q.id},${si},'S',this)">Sai</div>
+                            </div>
+                        </div>`;
+                    }
+                }
+                optionsHtml+='</div>';
+                // Override content to show only main question part
+                if(subs.length>0)q._mainContent=mainQ.join('\n');
+            }
+            else if(q.type==='essay'){
+                const saved=answers[q.id]||'';
+                optionsHtml=`<textarea class="essay-input" placeholder="Nhập câu trả lời của bạn..." onchange="setAns(${q.id},this.value)" oninput="setAns(${q.id},this.value)">${saved}</textarea>`;
+            }
+            
+            const displayContent=q._mainContent||q.content;
+            
+            return`<div class="q-card" id="q${q.id}">
+                <div class="q-num">
+                    <span>Câu ${q.question_number} <small>(${q.score} điểm)</small></span>
+                    <span class="q-type ${typeCls}">${typeLabel}</span>
+                </div>
+                <div class="q-content">${displayContent}</div>
+                ${optionsHtml}
+            </div>`;
+        }).join('');
+        
+        // Nav dots
+        document.getElementById('qNav').innerHTML=questions.map(q=>
+            `<div class="q-dot ${answers[q.id]?'answered':''}" id="dot${q.id}" onclick="document.getElementById('q${q.id}').scrollIntoView({behavior:'smooth'})">${q.question_number}</div>`
+        ).join('');
+    }
+    
+    function setAns(qid,val){
+        answers[qid]=val;
+        document.getElementById('dot'+qid).classList.add('answered');
+    }
+    
+    function setTF(qid,subIdx,val,el){
+        if(!answers[qid])answers[qid]=['','','',''];
+        if(typeof answers[qid]==='string'){
+            const arr=answers[qid].split('');
+            while(arr.length<4)arr.push('');
+            answers[qid]=arr;
+        }
+        answers[qid][subIdx]=val;
+        
+        // Update UI
+        const row=el.parentElement;
+        row.querySelectorAll('.tf-btn').forEach(b=>{b.className='tf-btn'});
+        el.className='tf-btn '+(val==='D'?'selected-d':'selected-s');
+        
+        // Check if all 4 answered
+        const allDone=answers[qid].every(v=>v);
+        if(allDone)document.getElementById('dot'+qid).classList.add('answered');
+    }
+    
+    function startTimer(){
+        const el=document.getElementById('timer');
+        timerInterval=setInterval(()=>{
+            timeLeft--;
+            if(timeLeft<=0){clearInterval(timerInterval);submitExam();return}
+            const m=Math.floor(timeLeft/60);const s=timeLeft%60;
+            el.textContent=m.toString().padStart(2,'0')+':'+s.toString().padStart(2,'0');
+            if(timeLeft<300)el.classList.add('warning');
+        },1000);
+    }
+    
+    async function submitExam(){
+        if(!confirm('Bạn có chắc muốn nộp bài?'))return;
+        clearInterval(timerInterval);
+        const spent=Math.floor((Date.now()-startTime)/1000);
+        
+        // Convert TF arrays to strings
+        const finalAnswers={};
+        for(const[k,v]of Object.entries(answers)){
+            if(Array.isArray(v))finalAnswers[k]=v.join('');
+            else finalAnswers[k]=v;
+        }
+        
+        const r=await fetch('/api/submit',{method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({exam_id:EID,answers:finalAnswers,time_spent:spent})});
+        const d=await r.json();
+        if(d.success)location.href='/result/'+d.submission_id;
+        else alert('Lỗi: '+(d.error||'Unknown'));
+    }
+    
+    load();
+    </script></body></html>

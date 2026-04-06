@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+    <html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>X-Exam - Tao de thi</title>
+    <style>
+    *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',sans-serif;background:#f0f2f5}
+    .nav{background:linear-gradient(135deg,#302b63,#24243e);color:#fff;padding:15px 30px;display:flex;justify-content:space-between;align-items:center}
+    .nav a{color:#fff;text-decoration:none}
+    .container{max-width:1000px;margin:20px auto;padding:0 20px}
+    .card{background:#fff;border-radius:12px;padding:25px;margin-bottom:15px;box-shadow:0 2px 10px rgba(0,0,0,0.08)}
+    h2{color:#302b63;margin-bottom:15px}
+    label{display:block;margin-bottom:5px;font-weight:600;color:#333;font-size:13px}
+    input,select,textarea{width:100%;padding:10px;border:2px solid #ddd;border-radius:8px;margin-bottom:10px;font-size:14px}
+    input:focus,select:focus,textarea:focus{border-color:#302b63;outline:none}
+    .row{display:flex;gap:12px}.row>*{flex:1}
+    .btn{padding:10px 20px;background:#302b63;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;transition:.3s}
+    .btn:hover{background:#24243e;transform:translateY(-1px)}
+    .btn-add{background:#27ae60}.btn-add:hover{background:#219a52}
+    .btn-danger{background:#e74c3c}.btn-sm{padding:6px 14px;font-size:12px}
+    .upload-area{border:3px dashed #aaa;border-radius:12px;padding:40px;text-align:center;cursor:pointer;transition:.3s;margin-bottom:15px;background:#fafafa}
+    .upload-area:hover{border-color:#302b63;background:#f0eeff}
+    .upload-area.dragover{border-color:#27ae60;background:#e8f5e9}
+    .upload-icon{font-size:48px;margin-bottom:10px}
+    .supported{color:#888;font-size:13px;margin-top:8px}
+    .msg{padding:12px 16px;border-radius:8px;margin:10px 0;font-size:14px}
+    .msg-ok{background:#e0ffe0;color:#060;border:1px solid #4CAF50}
+    .msg-err{background:#ffe0e0;color:#c00;border:1px solid #f44336}
+    .msg-info{background:#e3f2fd;color:#1565c0;border:1px solid #42a5f5}
+    .q-item{border:2px solid #e0e0e0;border-radius:12px;padding:18px;margin-bottom:14px;position:relative;transition:.3s}
+    .q-item:hover{border-color:#302b63;box-shadow:0 2px 12px rgba(0,0,0,0.1)}
+    .q-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .q-header h4{color:#302b63;font-size:15px}
+    .q-remove{background:#e74c3c;color:#fff;border:none;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:18px;line-height:30px}
+    .q-content-area{background:#f8f8f8;border-radius:8px;padding:12px;margin-bottom:12px;font-size:14px;line-height:1.6;white-space:pre-wrap;max-height:150px;overflow-y:auto}
+    .opt-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+    .opt-btn{padding:10px 14px;border:2px solid #ddd;border-radius:8px;cursor:pointer;transition:.3s;display:flex;align-items:center;gap:8px;font-size:13px;background:#fff}
+    .opt-btn:hover{border-color:#302b63;background:#f0eeff}
+    .opt-btn.selected{border-color:#27ae60;background:#e8f5e9;font-weight:700}
+    .opt-btn .letter{width:28px;height:28px;border-radius:50%;background:#eee;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0}
+    .opt-btn.selected .letter{background:#27ae60;color:#fff}
+    .opt-text{flex:1;word-break:break-word}
+    .preview-area{background:#f5f5f5;border-radius:8px;padding:15px;max-height:300px;overflow-y:auto;font-size:13px;line-height:1.5;white-space:pre-wrap;margin:10px 0;display:none;border:1px solid #ddd}
+    .loading{text-align:center;padding:20px;color:#302b63}
+    .loading::after{content:'';display:inline-block;width:20px;height:20px;border:3px solid #302b63;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;margin-left:10px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .score-input{width:70px;display:inline-block;text-align:center}
+    .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+    .badge-mc{background:#e3f2fd;color:#1565c0}
+    .badge-tf{background:#fff3e0;color:#e65100}
+    .badge-sa{background:#f3e5f5;color:#7b1fa2}
+    .counter{background:#302b63;color:#fff;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600}
+    </style></head><body>
+    <div class="nav"><a href="/dashboard">X-EXAM</a><h3>Tạo đề thi mới</h3><a href="/dashboard">Quay lại</a></div>
+    <div class="container">
+    
+    <div class="card">
+    <h2>Thông tin đề thi</h2>
+    <label>Tên đề thi *</label>
+    <input type="text" id="title" placeholder="VD: Đề thi thu Toan THPT 2026 - Lan 3">
+    <div class="row">
+    <div><label>Mon</label><select id="subject"><option>Toan</option><option>Vat ly</option><option>Tin hoc</option><option>Hoa hoc</option><option>Tieng Anh</option><option>Sinh hoc</option></select></div>
+    <div><label>Thời gian (phút)</label><input type="number" id="timeLimit" value="90"></div>
+    <div><label>Tổng điểm</label><input type="number" id="totalScore" value="10" step="0.5"></div>
+    </div>
+    </div>
+    
+    <div class="card">
+    <h2>Upload file đề thi</h2>
+    <div class="upload-area" id="dropZone" onclick="document.getElementById('fileInput').click()">
+    <div class="upload-icon">📄</div>
+    <p style="font-size:18px;font-weight:600">Kéo thả hoặc click để chọn file</p>
+    <p class="supported">Hỗ trợ: <b>PDF, Word (.docx), Ảnh (PNG/JPG), TXT</b></p>
+    <p class="supported">Hệ thống sẽ tự động đọc và tách câu hỏi!</p>
+    <input type="file" id="fileInput" style="display:none" accept=".pdf,.docx,.doc,.txt,.png,.jpg,.jpeg,.gif,.webp,.csv" onchange="uploadFile(this)">
+    </div>
+    <div id="uploadMsg"></div>
+    <div class="preview-area" id="previewArea"></div>
+    </div>
+    
+    <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px">
+    <h2 style="margin:0">Danh sách câu hỏi <span class="counter" id="qCount">0</span></h2>
+    <div style="display:flex;gap:8px">
+    <button class="btn btn-add btn-sm" onclick="addQuestion()">+ Thêm câu</button>
+    <button class="btn btn-sm" onclick="autoScore()">Tự động chia điểm</button>
+    </div>
+    </div>
+    <div style="background:#f0eeff;border-radius:12px;padding:16px;margin-bottom:18px;border:2px solid #d0c8f0">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+    <span style="font-size:20px">⚡</span>
+    <b style="color:#302b63;font-size:14px">Nhập đáp án nhanh</b>
+    <span style="color:#888;font-size:12px">(Gõ dãy chữ ABCD... theo thứ tự câu)</span>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center">
+    <input type="text" id="quickAnswers" placeholder="VD: ABACDDBCBA (câu 1=A, câu 2=B, câu 3=A...)" style="flex:1;padding:12px 16px;border:2px solid #764ba2;border-radius:10px;font-size:16px;font-weight:700;letter-spacing:4px;text-transform:uppercase;font-family:monospace" oninput="this.value=this.value.toUpperCase().replace(/[^ABCD]/g,'')">
+    <button class="btn" onclick="applyQuickAnswers()" style="padding:12px 20px;white-space:nowrap">✅ Áp dụng</button>
+    </div>
+    <div id="quickPreview" style="margin-top:8px;font-size:12px;color:#555"></div>
+    </div>
+    <!-- UPLOAD ĐÁP ÁN -->
+    <div style="background:#e8f5e9;border-radius:12px;padding:16px;margin-bottom:18px;border:2px solid #81c784">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+    <span style="font-size:20px">📋</span>
+    <b style="color:#2e7d32;font-size:14px">Nhập chuỗi đáp án</b>
+    <span style="color:#888;font-size:12px">(Trắc nghiệm: ABCD | Đúng/Sai: DDSD — D=Đúng, S=Sai)</span>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center">
+    <input type="text" id="answerKey" placeholder="VD: ABACD DDSD DSDD SDDS (khoảng trắng = phân cách phần)" style="flex:1;padding:12px 16px;border:2px solid #4CAF50;border-radius:10px;font-size:15px;font-weight:700;letter-spacing:2px;text-transform:uppercase;font-family:monospace">
+    <button class="btn" onclick="applyAnswerKey()" style="padding:12px 20px;background:#2e7d32;white-space:nowrap">📋 Áp dụng</button>
+    </div>
+    <div id="keyPreview" style="margin-top:8px;font-size:12px;color:#555"></div>
+    </div>
+    
+    <!-- AI TỰ CHỌN ĐÁP ÁN -->
+    <div style="background:#fff3e0;border-radius:12px;padding:16px;margin-bottom:18px;border:2px solid #ffb74d">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+    <div>
+    <div style="display:flex;align-items:center;gap:10px">
+    <span style="font-size:20px">🤖</span>
+    <b style="color:#e65100;font-size:14px">AI tự chọn đáp án</b>
+    </div>
+    <p style="color:#888;font-size:12px;margin-top:4px">AI sẽ gợi ý đáp án → Giáo viên kiểm tra lại trước khi lưu!</p>
+    </div>
+    <button class="btn" onclick="aiAutoAnswer()" style="padding:12px 20px;background:#e65100;white-space:nowrap">🤖 AI Giải đề</button>
+    </div>
+    <div id="aiResult" style="margin-top:8px;font-size:12px;color:#555"></div>
+    </div>
+    
+    <div id="qList"></div>
+    </div>
+    
+    <div style="text-align:center;margin:25px 0">
+    <button class="btn" onclick="saveExam()" style="padding:16px 60px;font-size:18px">LƯU ĐỀ THI</button>
+    </div>
+    <div id="saveMsg"></div>
+    </div>
+    
+    <script>
+    let questions = [];
+    
+    // Drag & Drop
+    const dz = document.getElementById('dropZone');
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+    dz.addEventListener('drop', e => {
+        e.preventDefault(); dz.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (file) { document.getElementById('fileInput').files = e.dataTransfer.files; uploadFile(document.getElementById('fileInput')); }
+    });
+    
+    async function uploadFile(input) {
+        const file = input.files[0];
+        if (!file) return;
+        
+        const msgEl = document.getElementById('uploadMsg');
+        msgEl.innerHTML = '<div class="loading">Dang doc file ' + file.name + '...</div>';
+        
+        const fd = new FormData();
+        fd.append('file', file);
+        
+        try {
+            const r = await fetch('/api/upload-exam', { method: 'POST', body: fd });
+            const d = await r.json();
+            
+            if (d.questions && d.questions.length > 0) {
+                msgEl.innerHTML = '<div class="msg msg-ok">Tim thay <b>' + d.questions.length + '</b> cau hoi tu file <b>' + d.filename + '</b> (' + d.file_type + ')! Hay chon dap an dung cho tung cau.</div>';
+                d.questions.forEach(q => addQuestion(q));
+            } else {
+                let errMsg = d.message || d.error || 'Khong nhan dien duoc cau hoi';
+                msgEl.innerHTML = '<div class="msg msg-err">' + errMsg + '</div>';
+                
+                // Show preview of raw text
+                if (d.content) {
+                    const prev = document.getElementById('previewArea');
+                    prev.style.display = 'block';
+                    prev.textContent = d.content;
+                }
+            }
+        } catch (err) {
+            msgEl.innerHTML = '<div class="msg msg-err">Loi upload: ' + err.message + '</div>';
+        }
+    }
+    
+    function addQuestion(data) {
+        const q = data || {
+            content: '', type: 'multiple_choice',
+            option_a: '', option_b: '', option_c: '', option_d: '',
+            correct_answer: '', score: 0.25, explanation: ''
+        };
+        questions.push(q);
+        renderQuestions();
+    }
+    
+    function removeQ(i) { questions.splice(i, 1); renderQuestions(); }
+    
+    function setAnswer(idx, letter) {
+        questions[idx].correct_answer = letter;
+        renderQuestions();
+    }
+    
+    function setTFAnswer(qIdx, subIdx, val) {
+        let ans = (questions[qIdx].correct_answer || '____').split('');
+        while(ans.length < 4) ans.push('_');
+        ans[subIdx] = val;
+        questions[qIdx].correct_answer = ans.join('');
+        renderQuestions();
+    }
+    
+    function renderQuestions() {
+        document.getElementById('qCount').textContent = questions.length;
+        const el = document.getElementById('qList');
+        
+        el.innerHTML = questions.map((q, i) => {
+            const typeLabel = q.type === 'true_false' ? 'Đúng/Sai' : (q.type === 'short_answer' ? 'Trả lời ngắn' : 'Trắc nghiệm');
+            const typeBadge = q.type === 'true_false' ? 'badge-tf' : (q.type === 'short_answer' ? 'badge-sa' : 'badge-mc');
+            
+            return `
+            <div class="q-item">
+                <div class="q-header">
+                    <h4>Cau ${i + 1} <span class="badge ${typeBadge}">${typeLabel}</span></h4>
+                    <div style="display:flex;gap:8px;align-items:center">
+                        <span style="font-size:12px;color:#888">Điểm:</span>
+                        <input class="score-input" type="number" step="0.25" value="${q.score}" onchange="questions[${i}].score=parseFloat(this.value)" style="width:60px;margin:0;padding:5px;text-align:center">
+                        <button class="q-remove" onclick="removeQ(${i})">x</button>
+                    </div>
+                </div>
+                
+                <div class="q-content-area" contenteditable="true" onblur="questions[${i}].content=this.textContent">${q.content || '(Click để nhập nội dung câu hỏi)'}</div>
+                
+                ${q.type === 'true_false' ? `
+                <div style="margin:8px 0">
+                    <div style="font-size:13px;color:#555;margin-bottom:8px;font-weight:600">Chọn Đúng/Sai cho từng ý:</div>
+                    ${['a','b','c','d'].map((letter, si) => {
+                        const ans = (q.correct_answer || '')[si] || '';
+                        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;margin:4px 0;background:#fafafa;border-radius:8px;border:1px solid #eee">
+                            <span style="font-weight:700;min-width:20px">${letter})</span>
+                            <div style="flex:1;font-size:13px;color:#555">Ý ${letter}</div>
+                            <div style="display:flex;gap:4px">
+                                <div onclick="setTFAnswer(${i},${si},'D')" style="padding:5px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;border:2px solid ${ans==='D'?'#27ae60':'#ddd'};background:${ans==='D'?'#27ae60':'#fff'};color:${ans==='D'?'#fff':'#333'}">Đúng</div>
+                                <div onclick="setTFAnswer(${i},${si},'S')" style="padding:5px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;border:2px solid ${ans==='S'?'#e74c3c':'#ddd'};background:${ans==='S'?'#e74c3c':'#fff'};color:${ans==='S'?'#fff':'#333'}">Sai</div>
+                            </div>
+                        </div>`;
+                    }).join('')}
+                    ${q.correct_answer ? '<div style="color:#27ae60;font-size:13px;font-weight:600;margin-top:6px">Đáp án: ' + q.correct_answer + '</div>' : '<div style="color:#e74c3c;font-size:13px;margin-top:6px">Chưa chọn đáp án Đúng/Sai!</div>'}
+                </div>
+                ` : q.type === 'essay' ? `
+                <div style="margin:8px 0">
+                    <div style="background:#fce4ec;border-radius:8px;padding:12px;font-size:13px;color:#c62828">
+                        📝 Câu tự luận — Học sinh sẽ nhập câu trả lời bằng chữ. Giáo viên chấm thủ công.
+                    </div>
+                </div>
+                ` : `
+                <div class="opt-grid">
+                    ${['A','B','C','D'].map(letter => {
+                        const key = 'option_' + letter.toLowerCase();
+                        const val = q[key] || '';
+                        const selected = q.correct_answer && q.correct_answer.toUpperCase() === letter;
+                        return `<div class="opt-btn ${selected ? 'selected' : ''}" onclick="setAnswer(${i},'${letter}')">
+                            <div class="letter">${letter}</div>
+                            <input class="opt-text" value="${val}" placeholder="Phương án ${letter}" 
+                                onclick="event.stopPropagation()" 
+                                onchange="questions[${i}].option_${letter.toLowerCase()}=this.value"
+                                style="border:none;background:transparent;padding:2px;font-size:13px;width:100%">
+                        </div>`;
+                    }).join('')}
+                </div>
+                ${q.correct_answer ? 
+                    '<div style="color:#27ae60;font-size:13px;font-weight:600">Đáp án: ' + q.correct_answer.toUpperCase() + '</div>' : 
+                    '<div style="color:#e74c3c;font-size:13px">Chưa chọn đáp án — Click vào phương án đúng!</div>'}
+                `}
+            </div>`;
+        }).join('');
+    }
+    
+    function autoScore() {
+        if (!questions.length) return;
+        const total = parseFloat(document.getElementById('totalScore').value) || 10;
+        const perQ = Math.round((total / questions.length) * 100) / 100;
+        questions.forEach(q => q.score = perQ);
+        renderQuestions();
+    }
+    
+    async function saveExam() {
+        const title = document.getElementById('title').value;
+        if (!title) { alert('Nhập tên đề thi!'); return; }
+        if (!questions.length) { alert('Thêm ít nhất 1 câu hỏi!'); return; }
+        
+        const noAnswer = questions.filter(q => !q.correct_answer).length;
+        if (noAnswer > 0) {
+            if (!confirm(noAnswer + ' câu chưa có đáp án. Vẫn lưu?')) return;
+        }
+        
+        const body = {
+            title, subject: document.getElementById('subject').value,
+            description: '', time_limit: parseInt(document.getElementById('timeLimit').value),
+            total_score: parseFloat(document.getElementById('totalScore').value),
+            questions
+        };
+        
+        const r = await fetch('/api/exam/create', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const d = await r.json();
+        
+        if (d.success) {
+            document.getElementById('saveMsg').innerHTML = '<div class="msg msg-ok" style="text-align:center;font-size:16px">Tạo đề thành công! <a href="/dashboard" style="color:#302b63;font-weight:700">Về trang chủ</a> | <a href="/exam/' + d.exam_id + '" style="color:#27ae60;font-weight:700">Làm thử</a></div>';
+        } else {
+            document.getElementById('saveMsg').innerHTML = '<div class="msg msg-err">Loi: ' + (d.error || '') + '</div>';
+        }
+    }
+    
+    
+    // Apply answer key string
+    function applyAnswerKey() {
+        const key = document.getElementById('answerKey').value.toUpperCase().replace(/\s+/g, '');
+        if (!key) { alert('Nhập chuỗi đáp án trước!'); return; }
+        if (!questions.length) { alert('Chưa có câu hỏi!'); return; }
+        
+        let keyIdx = 0;
+        let applied = 0;
+        const preview = [];
+        
+        for (let i = 0; i < questions.length && keyIdx < key.length; i++) {
+            const q = questions[i];
+            
+            if (q.type === 'multiple_choice') {
+                const c = key[keyIdx];
+                if ('ABCD'.includes(c)) {
+                    q.correct_answer = c;
+                    preview.push({num: i+1, ans: c, type: 'MC'});
+                    applied++;
+                }
+                keyIdx++;
+            }
+            else if (q.type === 'true_false') {
+                let tfAns = '';
+                for (let j = 0; j < 4 && keyIdx < key.length; j++) {
+                    const c = key[keyIdx];
+                    if ('DS'.includes(c)) tfAns += c;
+                    else if (c === '1') tfAns += 'D';
+                    else if (c === '0') tfAns += 'S';
+                    else tfAns += c;
+                    keyIdx++;
+                }
+                q.correct_answer = tfAns;
+                preview.push({num: i+1, ans: tfAns, type: 'TF'});
+                applied++;
+            }
+            // Skip essay
+        }
+        
+        renderQuestions();
+        
+        const el = document.getElementById('keyPreview');
+        el.innerHTML = '✅ Đã áp dụng <b>' + applied + '</b> câu! ' +
+            preview.map(p => '<span style="display:inline-block;padding:2px 8px;margin:2px;border-radius:8px;font-size:11px;font-weight:700;' +
+                (p.type==='MC'?'background:#e3f2fd;color:#1565c0':'background:#fff3e0;color:#e65100') + 
+                '">C' + p.num + ':' + p.ans + '</span>').join('');
+    }
+    
+    // AI auto-answer - FIXED
+    async function aiAutoAnswer() {
+        if (!questions.length) { alert('Chưa có câu hỏi! Hãy upload file hoặc thêm câu trước.'); return; }
+        
+        const el = document.getElementById('aiResult');
+        el.innerHTML = '<span style="color:#e65100">&#x1F916; AI đang phân tích ' + questions.length + ' câu hỏi...</span>';
+        
+        try {
+            const r = await fetch('/api/ai-auto-answer', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({questions: questions})
+            });
+            const d = await r.json();
+            
+            if (d.success && d.questions) {
+                questions = d.questions;
+                renderQuestions();
+                
+                // Count how many were answered
+                const answered = questions.filter(q => q.correct_answer && q.correct_answer.trim()).length;
+                
+                // Build preview chips
+                const chips = questions.map((q, idx) => {
+                    if (!q.correct_answer) return '';
+                    const bg = q.type === 'true_false' ? '#fff3e0' : '#e3f2fd';
+                    const cl = q.type === 'true_false' ? '#e65100' : '#1565c0';
+                    return '<span style="display:inline-block;padding:2px 8px;margin:2px;border-radius:8px;font-size:11px;font-weight:700;background:' + bg + ';color:' + cl + '">C' + (idx+1) + ':' + q.correct_answer + '</span>';
+                }).join('');
+                
+                el.innerHTML = '&#x1F916; AI đã gợi ý <b>' + answered + '/' + questions.length + '</b> câu! ' +
+                    '<span style="color:#e74c3c;font-weight:700">&#x26A0;&#xFE0F; ' + (d.warning || 'Giáo viên cần kiểm tra lại!') + '</span>' +
+                    '<br><div style="margin-top:6px">' + chips + '</div>';
+            } else {
+                el.innerHTML = '<span style="color:#e74c3c">Lỗi: ' + (d.error || 'Phản hồi không hợp lệ từ server') + '</span>';
+            }
+        } catch(err) {
+            el.innerHTML = '<span style="color:#e74c3c">&#x274C; Lỗi kết nối: ' + err.message + '</span>';
+        }
+    }
+    
+    renderQuestions();
+    </script><script src="/static/js/mascot.js"></script>
+</body></html>

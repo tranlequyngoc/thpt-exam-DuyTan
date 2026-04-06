@@ -1,0 +1,283 @@
+<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>X-Exam - Trang chu</title>
+    <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Segoe UI',sans-serif;background:#f0f2f5;min-height:100vh}
+    .nav{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:12px 25px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;box-shadow:0 4px 15px rgba(102,126,234,0.3)}
+    .nav h2{font-size:22px;display:flex;align-items:center;gap:8px}
+    .nav-links{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+    .nav-links a{color:#fff;text-decoration:none;padding:7px 14px;border-radius:20px;font-size:13px;font-weight:600;transition:.3s;white-space:nowrap}
+    .nav-links a:hover{background:rgba(255,255,255,0.25);transform:scale(1.05)}
+    .nav-links .hot{background:rgba(255,215,0,0.3);border:1px solid rgba(255,215,0,0.5)}
+    
+    .container{max-width:1200px;margin:0 auto;padding:20px}
+    
+    /* RANK CARD */
+    .rank-card{background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);border-radius:20px;padding:30px;margin-bottom:25px;color:#fff;position:relative;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,0.2)}
+    .rank-card::before{content:'';position:absolute;top:-50%;right:-20%;width:300px;height:300px;background:radial-gradient(circle,rgba(255,215,0,0.1),transparent);border-radius:50%}
+    .rank-top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:15px}
+    .rank-left{display:flex;align-items:center;gap:20px}
+    .rank-icon{font-size:60px;filter:drop-shadow(0 0 15px rgba(255,215,0,0.5));animation:float 3s ease-in-out infinite}
+    @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+    .rank-info h3{font-size:14px;opacity:0.7;margin-bottom:4px}
+    .rank-name{font-size:28px;font-weight:800;text-transform:uppercase;letter-spacing:2px}
+    .rank-desc{font-size:14px;opacity:0.8;margin-top:4px;font-style:italic}
+    .rank-right{text-align:right}
+    .rank-subs{font-size:36px;font-weight:800}
+    .rank-subs-label{font-size:13px;opacity:0.7}
+    .rank-progress{margin-top:15px}
+    .rank-progress-bar{height:10px;background:rgba(255,255,255,0.15);border-radius:10px;overflow:hidden;margin-top:6px}
+    .rank-progress-fill{height:100%;border-radius:10px;transition:width 1s ease;background:linear-gradient(90deg,#ffd700,#ff6b6b)}
+    .rank-next{font-size:12px;opacity:0.7;display:flex;justify-content:space-between}
+    .meme{background:rgba(255,255,255,0.1);padding:10px 16px;border-radius:10px;margin-top:12px;font-size:13px;text-align:center;font-style:italic}
+    .meme::before{content:'💬 '}
+    
+    /* QUICK STATS */
+    .quick-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:25px}
+    .qs{background:#fff;border-radius:16px;padding:20px;text-align:center;box-shadow:0 4px 15px rgba(0,0,0,0.06);transition:.3s;cursor:default}
+    .qs:hover{transform:translateY(-3px);box-shadow:0 8px 25px rgba(0,0,0,0.12)}
+    .qs .icon{font-size:30px;margin-bottom:8px}
+    .qs .num{font-size:28px;font-weight:800;color:#333}
+    .qs .label{font-size:12px;color:#888;margin-top:3px}
+    
+    /* SECTION */
+    .section{margin-bottom:25px}
+    .section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px}
+    .section-header h2{font-size:22px;color:#333;display:flex;align-items:center;gap:8px}
+    
+    /* EXAM CARDS */
+    .exams{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:15px}
+    .exam-card{background:#fff;border-radius:16px;padding:20px;box-shadow:0 4px 15px rgba(0,0,0,0.06);transition:.3s;position:relative;overflow:hidden}
+    .exam-card:hover{transform:translateY(-4px);box-shadow:0 8px 30px rgba(0,0,0,0.12)}
+    .exam-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px}
+    .exam-card.toan::before{background:linear-gradient(90deg,#ff6b6b,#ffa500)}
+    .exam-card.ly::before{background:linear-gradient(90deg,#4ecdc4,#44a08d)}
+    .exam-card.tin::before{background:linear-gradient(90deg,#667eea,#764ba2)}
+    .exam-card.other::before{background:linear-gradient(90deg,#a8e6cf,#88d8a8)}
+    .exam-subject{display:inline-block;padding:3px 12px;border-radius:20px;font-size:11px;font-weight:700;margin-bottom:10px}
+    .exam-subject.toan{background:#fff3e0;color:#e65100}
+    .exam-subject.ly{background:#e0f7fa;color:#00695c}
+    .exam-subject.tin{background:#ede7f6;color:#4527a0}
+    .exam-subject.other{background:#e8f5e9;color:#2e7d32}
+    .exam-card h3{font-size:16px;color:#333;margin-bottom:8px;line-height:1.3}
+    .exam-meta{display:flex;gap:12px;color:#888;font-size:12px;margin-bottom:12px;flex-wrap:wrap}
+    .exam-meta span{display:flex;align-items:center;gap:4px}
+    .exam-status{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600}
+    .status-done{background:#e8f5e9;color:#27ae60}
+    .status-new{background:#e3f2fd;color:#1565c0}
+    .exam-actions{display:flex;gap:8px;margin-top:12px}
+    .btn{padding:10px 20px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:.3s;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+    .btn:hover{transform:translateY(-1px)}
+    .btn-primary{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;box-shadow:0 4px 12px rgba(102,126,234,0.3)}
+    .btn-primary:hover{box-shadow:0 6px 20px rgba(102,126,234,0.5)}
+    .btn-danger{background:#ff4757;color:#fff}
+    .btn-sm{padding:7px 14px;font-size:12px}
+    .empty{text-align:center;padding:40px;color:#888}
+    .empty .icon{font-size:60px;margin-bottom:15px}
+    </style></head><body>
+    
+    <div class="nav">
+    <h2>&#x1F680; X-EXAM</h2>
+    <div class="nav-links">
+    <span style="opacity:0.8;font-size:13px" id="userInfo"></span>
+    <a href="/leaderboard" class="hot">&#x1F451; Vua Trí Tuệ</a>
+    <a href="/groups">&#x1F465; Nhóm lớp</a>
+<a href="/chat">&#x1F4AC; AI Cô giáo</a>
+    <a href="/stats">&#x1F4CA; Thống kê</a>
+    <a href="/teacher-review" id="reviewBtn" style="display:none">&#x1F441; Xem bài HS</a>
+    <a href="/create-exam" id="createBtn" style="display:none">&#x270F; Tạo đề</a>
+    <a href="/api/logout">&#x1F6AA; Thoát</a>
+    </div>
+    </div>
+    
+    <div class="container">
+    <!-- RANK CARD -->
+    <div class="rank-card" id="rankCard"><div style="text-align:center;padding:20px;opacity:0.5">Đang tải rank...</div></div>
+    
+    <!-- QUICK STATS -->
+    <div class="quick-stats" id="quickStats"></div>
+    
+    <!-- EXAM LIST -->
+    <div class="section">
+    <div class="section-header">
+    <h2>&#x1F4DA; Đề thi có sẵn</h2>
+    </div>
+    <div class="exams" id="examList"><div class="empty"><div class="icon">&#x1F4DA;</div><p>Đang tải đề thi...</p></div></div>
+    </div>
+    </div>
+    
+    <script>
+    const role='{{session.role}}';
+    const fullname='{{session.fullname}}';
+    document.getElementById('userInfo').textContent='Hi, '+fullname+'!';
+    if(role=='teacher'||role=='admin'){document.getElementById('createBtn').style.display='inline';document.getElementById('reviewBtn').style.display='inline';}
+    
+    function getSubjectClass(s){
+        s=(s||'').toLowerCase();
+        if(s.includes('toan')||s.includes('math'))return 'toan';
+        if(s.includes('ly')||s.includes('vat'))return 'ly';
+        if(s.includes('tin')||s.includes('it'))return 'tin';
+        return 'other';
+    }
+    
+    async function loadRank(){
+        try{
+            const r=await fetch('/api/my-rank');const d=await r.json();
+            const el=document.getElementById('rankCard');
+            const nextHtml=d.next_rank?
+                '<div class="rank-next"><span>'+d.next_rank.icon+' '+d.next_rank.name+': can '+d.next_rank.need+' de</span><span>'+d.progress+'%</span></div><div class="rank-progress-bar"><div class="rank-progress-fill" style="width:'+d.progress+'%;background:linear-gradient(90deg,'+d.color+',#ffd700)"></div></div>':
+                '<div style="text-align:center;font-size:14px;opacity:0.8;margin-top:10px">&#x1F3C6; Da dat cap bac cao nhat!</div>';
+            el.innerHTML=`
+                <div class="rank-top">
+                    <div class="rank-left">
+                        <div class="rank-icon">${d.icon}</div>
+                        <div>
+                            <h3>Rank của bạn</h3>
+                            <div class="rank-name" style="color:${d.color}">${d.name}</div>
+                            <div class="rank-desc">${d.desc}</div>
+                        </div>
+                    </div>
+                    <div class="rank-right">
+                        <div class="rank-subs">${d.total_subs}</div>
+                        <div class="rank-subs-label">bài đã làm</div>
+                    </div>
+                </div>
+                <div class="rank-progress">${nextHtml}</div>
+                <div class="meme">${d.meme}</div>`;
+        }catch(e){console.log(e)}
+    }
+    
+    async function loadStats(){
+        try{
+            const r=await fetch('/api/stats');const d=await r.json();
+            document.getElementById('quickStats').innerHTML=`
+                <div class="qs"><div class="icon">&#x1F4DD;</div><div class="num">${d.total_exams}</div><div class="label">Đề đã làm</div></div>
+                <div class="qs"><div class="icon">&#x1F4E8;</div><div class="num">${d.total_submissions}</div><div class="label">Lần nộp bài</div></div>
+                <div class="qs"><div class="icon">&#x2B50;</div><div class="num">${d.avg_score}</div><div class="label">Điểm trung bình</div></div>
+                ${d.by_subject.map(s=>'<div class="qs"><div class="icon">&#x1F3AF;</div><div class="num">'+s.best_score+'</div><div class="label">'+s.subject+' (max)</div></div>').join('')}`;
+        }catch(e){}
+    }
+    
+    async function loadExams(){
+        const r=await fetch('/api/exams');const data=await r.json();
+        const el=document.getElementById('examList');
+        if(!data.length){
+            el.innerHTML='<div class="empty"><div class="icon">&#x1F914;</div><p>Chưa có đề thi nào!</p><p style="margin-top:10px">'+(role=='teacher'||role=='admin'?'<a href="/create-exam" class="btn btn-primary">Tạo đề thi dau tien!</a>':'Đợi giáo viên tạo đề nhé!')+'</p></div>';
+            return;
+        }
+        el.innerHTML=data.map(e=>{
+            const sc=getSubjectClass(e.subject);
+            const statusHtml=e.my_attempts>0?
+                '<span class="exam-status status-done">&#x2705; Đã làm '+e.my_attempts+' lan</span>':
+                '<span class="exam-status status-new">&#x2728; Chưa làm</span>';
+            const bestHtml=e.my_best!=null?'<span>&#x1F3C6; Cao nhất: <b>'+e.my_best+'</b></span>':'';
+            return `<div class="exam-card ${sc}">
+                <span class="exam-subject ${sc}">${e.subject}</span> ${statusHtml}
+                <h3>${e.title}</h3>
+                <div class="exam-meta">
+                    <span>&#x1F4DD; ${e.question_count} cau</span>
+                    <span>&#x23F0; ${e.time_limit} phut</span>
+                    <span>&#x1F4AF; ${e.total_score} diem</span>
+                    ${bestHtml}
+                </div>
+                <div class="exam-actions">
+                    <a class="btn btn-primary" href="/exam/${e.id}">&#x1F3AE; Làm bài</a>
+                    ${(role=='teacher'||role=='admin')?'<button class="btn btn-danger btn-sm" onclick="delExam('+e.id+')">&#x1F5D1; Xóa</button>':''}
+                </div>
+            </div>`;
+        }).join('');
+    }
+    
+    async function toggleExam(id,btn){
+        const r=await fetch('/api/exam/toggle/'+id,{method:'POST'});
+        const d=await r.json();
+        if(d.success){loadExams();}
+    }
+    
+    async function delExam(id){if(!confirm('Xóa de thi nay?'))return;await fetch('/api/exam/delete/'+id,{method:'DELETE'});loadExams()}
+    
+    loadRank();loadStats();loadExams();
+    </script>
+    <!-- STREAK CARD after rank card -->
+    <div id="streakCard" style="background:#fff;border-radius:16px;padding:20px;margin-bottom:20px;box-shadow:0 4px 15px rgba(0,0,0,0.06);display:flex;align-items:center;gap:20px;flex-wrap:wrap"></div>
+    
+    <!-- QUICK MODE -->
+    <div style="background:linear-gradient(135deg,#ff6b6b,#ffa500);border-radius:16px;padding:20px;margin-bottom:25px;color:#fff;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;box-shadow:0 4px 20px rgba(255,107,107,0.3)">
+    <div>
+    <div style="font-size:22px;font-weight:800">&#x26A1; Luyện nhanh 5 phút!</div>
+    <div style="opacity:0.9;font-size:14px">Hệ thống chọn ngẫu nhiên 10 câu — làm ngay không cần chọn đề!</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button onclick="quickExam('Toan')" class="btn" style="background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.5);padding:10px 18px">&#x1F4D0; Toan</button>
+    <button onclick="quickExam('Vật lý')" class="btn" style="background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.5);padding:10px 18px">&#x269B; Vật lý</button>
+    <button onclick="quickExam('Tin học')" class="btn" style="background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.5);padding:10px 18px">&#x1F4BB; Tin học</button>
+    <button onclick="quickExam('')" class="btn" style="background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.5);padding:10px 18px">&#x1F3B2; Ngẫu nhiên</button>
+    </div>
+    </div>
+    
+    <!-- THEME SWITCHER (floating) -->
+    <div style="position:fixed;bottom:20px;left:20px;z-index:999;display:flex;gap:6px">
+    <button onclick="setTheme('light')" style="width:30px;height:30px;border-radius:50%;border:2px solid #ddd;background:linear-gradient(135deg,#fff,#f0f0f0);cursor:pointer" title="Light"></button>
+    <button onclick="setTheme('dark')" style="width:30px;height:30px;border-radius:50%;border:2px solid #444;background:linear-gradient(135deg,#1a1a2e,#333);cursor:pointer" title="Dark"></button>
+    <button onclick="setTheme('meme')" style="width:30px;height:30px;border-radius:50%;border:2px solid #ffd700;background:linear-gradient(135deg,#ff6b6b,#ffd700);cursor:pointer" title="Meme"></button>
+    </div>
+    
+    <script>
+    // STREAK
+    async function loadStreak(){
+        try{
+            const r=await fetch('/api/streak');const d=await r.json();
+            const el=document.getElementById('streakCard');
+            const fire=d.streak>0?'&#x1F525;'.repeat(Math.min(d.streak,5)):'&#x2744;';
+            el.innerHTML=`
+                <div style="text-align:center;min-width:80px">
+                    <div style="font-size:36px">${fire}</div>
+                    <div style="font-size:28px;font-weight:800;color:#ff6b6b">${d.streak}</div>
+                    <div style="font-size:12px;color:#888">ngày liên tiếp</div>
+                </div>
+                <div style="flex:1;min-width:200px">
+                    <div style="display:flex;gap:15px;flex-wrap:wrap">
+                        <div><span style="font-size:12px;color:#888">Kỷ lục:</span> <b>${d.longest} ngay</b></div>
+                        <div><span style="font-size:12px;color:#888">Tổng ngày học:</span> <b>${d.total_days}</b></div>
+                        <div>${d.today_done?'<span style="color:#27ae60;font-weight:700">&#x2705; Hôm nay đã học!</span>':'<span style="color:#e74c3c;font-weight:700">&#x26A0; Hôm nay chưa làm bài!</span>'}</div>
+                    </div>
+                    ${d.badges.length?'<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'+d.badges.map(b=>'<span style="background:#f5f5ff;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600">'+b.icon+' '+b.name+'</span>').join('')+'</div>':''}
+                </div>`;
+        }catch(e){console.log(e)}
+    }
+    
+    // QUICK EXAM
+    async function quickExam(subject){
+        const r=await fetch('/api/quick-exam',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject:subject,num:10})});
+        const d=await r.json();
+        if(d.success){
+            location.href='/exam/'+d.exam_id;
+        }else{
+            alert(d.error||'Chưa có câu hỏi nào! Hãy thêm đề trước.');
+        }
+    }
+    
+    // THEME
+    function setTheme(t){
+        document.body.className=t;
+        localStorage.setItem('xexam-theme',t);
+        if(t=='dark'){
+            document.body.style.background='#1a1a2e';
+            document.querySelectorAll('.qs,.exam-card,.rank-card,#streakCard').forEach(el=>el.style.color='#fff');
+        }else if(t=='meme'){
+            document.body.style.background='linear-gradient(135deg,#fff3e0,#ffe0b2)';
+        }else{
+            document.body.style.background='#f0f2f5';
+        }
+    }
+    // Load saved theme
+    const saved=localStorage.getItem('xexam-theme');
+    if(saved)setTheme(saved);
+    
+    loadStreak();
+    </script>
+    
+    <!-- MASCOT -->
+    <script src="/static/js/mascot.js"></script>
+    
+</body></html>

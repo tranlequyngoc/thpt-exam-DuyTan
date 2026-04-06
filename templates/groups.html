@@ -1,0 +1,113 @@
+<!DOCTYPE html><html lang="vi"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>X-Exam - Nhom lop</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',sans-serif;background:#f0f2f5}
+.nav{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:12px 24px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100}
+.nav a{color:#fff;text-decoration:none;padding:6px 13px;border-radius:20px;font-size:13px;font-weight:600;transition:.25s}
+.nav a:hover{background:rgba(255,255,255,.2)}
+.nav-brand{font-size:20px;font-weight:900}
+.container{max-width:900px;margin:20px auto;padding:0 20px}
+.card{background:#fff;border-radius:16px;padding:22px;box-shadow:0 4px 18px rgba(0,0,0,.07);margin-bottom:15px;transition:.25s;animation:fadeIn .4s ease}
+.card:hover{box-shadow:0 8px 28px rgba(0,0,0,.12)}
+@keyframes fadeIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+h2{color:#333;margin-bottom:16px;font-size:20px}
+label{display:block;margin-bottom:5px;font-weight:600;color:#555;font-size:13px}
+input,select,textarea{width:100%;padding:11px 14px;border:2px solid #e0e0e0;border-radius:10px;font-size:14px;transition:.25s;margin-bottom:10px}
+input:focus,select:focus{border-color:#667eea;outline:none}
+.btn{padding:10px 22px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:.25s;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{transform:translateY(-2px)}
+.btn-primary{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}
+.btn-success{background:#27ae60;color:#fff}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.group-card{background:#fff;border-radius:14px;padding:18px;box-shadow:0 3px 14px rgba(0,0,0,.06);border-left:4px solid #667eea;transition:.3s}
+.group-card:hover{transform:translateY(-3px);box-shadow:0 6px 24px rgba(0,0,0,.1)}
+.code-badge{background:#ede7f6;color:#4527a0;padding:3px 10px;border-radius:8px;font-family:monospace;font-size:13px;font-weight:700}
+.msg{padding:11px;border-radius:10px;margin:8px 0;font-size:14px;font-weight:600;display:none}
+.msg.ok{display:block;background:#e8f5e9;color:#2e7d32}
+.msg.err{display:block;background:#ffebee;color:#c62828}
+</style></head><body>
+<div class="nav">
+<a href="/dashboard" class="nav-brand">&#x1F680; X-EXAM</a>
+<div>
+<a href="/dashboard">&#x1F3E0; Trang chu</a>
+</div>
+</div>
+<div class="container">
+<div class="row">
+<!-- TAO NHOM (GV) -->
+<div class="card" id="createSection" style="display:none;flex:1;min-width:280px">
+<h2>&#x2795; Tao nhom lop moi</h2>
+<label>Ten nhom</label><input id="gName" placeholder="VD: Lop 12A1 - Toan">
+<label>Mon hoc</label>
+<select id="gSubject">
+<option>Toan</option><option>Vat ly</option><option>Tin hoc</option><option>Hoa hoc</option><option>Tieng Anh</option>
+</select>
+<label>Mo ta</label><textarea id="gDesc" rows="2" placeholder="Mo ta nhom..."></textarea>
+<button class="btn btn-primary" onclick="createGroup()">&#x1F465; Tao nhom</button>
+<div id="createMsg" class="msg"></div>
+</div>
+<!-- THAM GIA NHOM (HS) -->
+<div class="card" style="flex:1;min-width:280px">
+<h2>&#x1F517; Tham gia nhom</h2>
+<label>Ma moi (do giao vien cung cap)</label>
+<input id="joinCode" placeholder="VD: ABC123" style="text-transform:uppercase;font-family:monospace;font-size:18px;font-weight:700;letter-spacing:4px">
+<button class="btn btn-success" onclick="joinGroup()">&#x1F91D; Tham gia</button>
+<div id="joinMsg" class="msg"></div>
+</div>
+</div>
+<!-- DANH SACH NHOM -->
+<h2 style="margin-bottom:14px">&#x1F4DA; Nhom cua toi</h2>
+<div id="groupList"><p style="color:#888;text-align:center;padding:20px">Dang tai...</p></div>
+</div>
+<script>
+const role = '{{session.role}}';
+if(role=='teacher'||role=='admin') document.getElementById('createSection').style.display='block';
+
+async function createGroup(){
+    const name=document.getElementById('gName').value;
+    if(!name){alert('Nhap ten nhom!');return}
+    const r=await fetch('/api/group/create',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({name,subject:document.getElementById('gSubject').value,description:document.getElementById('gDesc').value})});
+    const d=await r.json();
+    const msg=document.getElementById('createMsg');
+    if(d.success){
+        msg.className='msg ok';
+        msg.innerHTML='Tao nhom thanh cong! Ma moi: <b style="font-size:20px;letter-spacing:4px">'+d.invite_code+'</b> (chia se voi hoc sinh)';
+        loadGroups();
+    }else{msg.className='msg err';msg.textContent=d.error}
+}
+
+async function joinGroup(){
+    const code=document.getElementById('joinCode').value.trim().toUpperCase();
+    if(!code){alert('Nhap ma moi!');return}
+    const r=await fetch('/api/group/join',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code})});
+    const d=await r.json();
+    const msg=document.getElementById('joinMsg');
+    if(d.success){msg.className='msg ok';msg.textContent='Da tham gia nhom: '+d.group_name;loadGroups()}
+    else{msg.className='msg err';msg.textContent=d.error||'Ma moi khong hop le!'}
+}
+
+async function loadGroups(){
+    const r=await fetch('/api/groups');const data=await r.json();
+    const el=document.getElementById('groupList');
+    if(!data.length){el.innerHTML='<div style="text-align:center;padding:30px;color:#888"><div style="font-size:48px">&#x1F4DA;</div><p>Chua co nhom nao.<br>'+(role=='teacher'?'Tao nhom de bat dau!':'Nhap ma moi de tham gia!')+'</p></div>';return}
+    el.innerHTML=data.map(g=>`
+        <div class="group-card" style="margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:8px">
+                <div>
+                    <h3 style="color:#333;margin-bottom:4px">${g.name}</h3>
+                    <span style="background:#ede7f6;color:#4527a0;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">${g.subject}</span>
+                    <span style="color:#888;font-size:12px;margin-left:8px">&#x1F465; ${g.member_count||0} thanh vien</span>
+                    ${g.description?'<p style="color:#666;font-size:13px;margin-top:4px">'+g.description+'</p>':''}
+                </div>
+                <div style="text-align:right">
+                    <span class="code-badge">${g.invite_code}</span>
+                    <br><a href="/group/${g.id}" class="btn btn-primary" style="margin-top:8px;padding:7px 14px;font-size:12px">&#x1F4E2; Xem nhom</a>
+                </div>
+            </div>
+        </div>`).join('');
+}
+loadGroups();
+</script></body></html>
