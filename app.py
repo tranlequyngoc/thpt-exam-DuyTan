@@ -332,6 +332,20 @@ def admin_page(): return render_template('admin.html')
 @teacher_req
 def teacher_stats_page(): return render_template('teacher_stats.html')
 
+@app.route('/seed')
+@admin_req
+def seed_page():
+    c = get_db()
+    admin = c.execute("SELECT id FROM users WHERE role='admin' ORDER BY id LIMIT 1").fetchone()
+    admin_id = admin['id'] if admin else 1
+    existing = c.execute("SELECT count(*) as cnt FROM exams").fetchone()['cnt']
+    c.close()
+    if existing > 0:
+        return f'<html><body style="font-family:sans-serif;padding:40px;background:#1a1a2e;color:#fff"><h1>Da co {existing} de thi trong database!</h1><a href="/dashboard" style="color:#27ae60">Ve trang chu</a></body></html>'
+    from flask import redirect
+    result = api_seed_exams()
+    return f'<html><body style="font-family:sans-serif;padding:40px;background:#1a1a2e;color:#fff"><h1 style="color:#27ae60">Thanh cong!</h1><p style="font-size:18px">{result.get_data(as_text=True)}</p><br><a href="/dashboard" style="background:#667eea;color:#fff;padding:14px 30px;border-radius:12px;text-decoration:none;font-weight:700">Ve trang chu xem de thi</a></body></html>'
+
 @app.route('/import-students')
 @teacher_req
 def import_students_page(): return render_template('import_students.html')
