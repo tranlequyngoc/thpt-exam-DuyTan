@@ -92,16 +92,21 @@
     if(q)list=list.filter(u=>(u.fullname||'').toLowerCase().includes(q)||(u.username||'').toLowerCase().includes(q));
     const el=document.getElementById('userTable');
     if(!list.length){el.innerHTML='<div class="empty">Khong tim thay</div>';return;}
-    el.innerHTML='<table><tr><th>#</th><th></th><th>Ho ten</th><th>Username</th><th>Vai tro</th><th>Bai</th><th>De</th><th>Ngay DK</th><th>Hanh dong</th></tr>'+
-    list.map((u,i)=>`<tr><td>${i+1}</td><td style="font-size:24px">${u.avatar}</td><td><b>${u.fullname}</b></td><td><code>${u.username}</code></td>
+    el.innerHTML='<table><tr><th>#</th><th></th><th>Ho ten</th><th>Username</th><th>Vai tro</th><th>Trang thai</th><th>Bai</th><th>De</th><th>Ngay DK</th><th>Hanh dong</th></tr>'+
+    list.map((u,i)=>{const st=u.role=='teacher'?`<span style="color:${u.is_approved?'#27ae60':'#e74c3c'}">${u.is_approved?'✅ Duyet':'⏳ Cho'}</span>`:'—';
+    return `<tr><td>${i+1}</td><td style="font-size:24px">${u.avatar}</td><td><b>${u.fullname}</b></td><td><code>${u.username}</code></td>
     <td><span class="role-badge role-${u.role}">${u.role}</span></td>
+    <td>${st}</td>
     <td>${u.total_subs}</td><td>${u.total_exams}</td>
     <td style="font-size:11px;opacity:.7">${(u.created_at||'').slice(0,16)}</td>
-    <td><select onchange="changeRole(${u.id},this.value)"><option value="">Doi role</option><option value="student">Hoc sinh</option><option value="teacher">Giao vien</option><option value="admin">Admin</option></select>
-    <button class="btn-sm btn-del" onclick="delUser(${u.id},'${u.username}')">&times;</button></td></tr>`).join('')+'</table>';
+    <td>${u.role=='teacher'&&!u.is_approved?'<button class="btn-sm" style="background:#27ae60" onclick="approveTeacher('+u.id+')">Duyet</button>':''}
+    <select onchange="changeRole(${u.id},this.value)"><option value="">Doi role</option><option value="student">Hoc sinh</option><option value="teacher">Giao vien</option><option value="admin">Admin</option></select>
+    <button class="btn-sm btn-del" onclick="delUser(${u.id},'${u.username}')">&times;</button></td></tr>`}).join('')+'</table>';
     }
     async function changeRole(uid,role){if(!role)return;if(!confirm('Doi role thanh '+role+'?'))return;
     await fetch('/api/admin/change-role',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:uid,role})});loadUsers();loadOverview();}
+    async function approveTeacher(uid){if(!confirm('Duyet tai khoan giao vien nay?'))return;
+    await fetch('/api/admin/approve-teacher/'+uid,{method:'POST'});loadUsers();loadOverview();}
     async function delUser(uid,uname){if(!confirm('XOA user "'+uname+'" va tat ca du lieu?'))return;
     await fetch('/api/admin/delete-user/'+uid,{method:'DELETE'});loadUsers();loadOverview();}
     async function loadExams(){const r=await fetch('/api/exams');const data=await r.json();

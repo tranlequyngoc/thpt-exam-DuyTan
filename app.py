@@ -92,6 +92,7 @@ def init_db():
             fullname TEXT NOT NULL,
             role TEXT DEFAULT 'student',
             avatar TEXT DEFAULT '🎓',
+            is_approved INTEGER DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
     CREATE TABLE IF NOT EXISTS exams (
@@ -106,6 +107,9 @@ def init_db():
             is_open INTEGER DEFAULT 1,
             open_at TEXT DEFAULT NULL,
             close_at TEXT DEFAULT NULL,
+            max_attempts INTEGER DEFAULT 999,
+            shuffle_questions INTEGER DEFAULT 0,
+            teacher_approved INTEGER DEFAULT 1,
             created_by INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
@@ -169,7 +173,9 @@ def init_db():
     else:
         existing = [r[1] for r in c.execute("PRAGMA table_info(exams)").fetchall()]
     for col, defval in [('source',"TEXT DEFAULT ''"), ('is_open',"INTEGER DEFAULT 1"),
-                             ('open_at',"TEXT DEFAULT NULL"), ('close_at',"TEXT DEFAULT NULL")]:
+                             ('open_at',"TEXT DEFAULT NULL"), ('close_at',"TEXT DEFAULT NULL"),
+                             ('max_attempts',"INTEGER DEFAULT 999"), ('shuffle_questions',"INTEGER DEFAULT 0"),
+                             ('teacher_approved',"INTEGER DEFAULT 1")]:
             if col not in existing:
                 try: c.execute(f"ALTER TABLE exams ADD COLUMN {col} {defval}")
                 except: pass
@@ -186,9 +192,10 @@ def init_db():
         existing3 = [r['column_name'] for r in c.execute("SELECT column_name FROM information_schema.columns WHERE table_name='users'").fetchall()]
     else:
         existing3 = [r[1] for r in c.execute("PRAGMA table_info(users)").fetchall()]
-    if 'avatar' not in existing3:
-            try: c.execute("ALTER TABLE users ADD COLUMN avatar TEXT DEFAULT '🎓'")
-            except: pass
+    for col, defval in [('avatar',"TEXT DEFAULT '🎓'"), ('is_approved',"INTEGER DEFAULT 1")]:
+            if col not in existing3:
+                try: c.execute(f"ALTER TABLE users ADD COLUMN {col} {defval}")
+                except: pass
 
     pw = hashlib.sha256('admin123'.encode()).hexdigest()
     pw2 = hashlib.sha256('123456'.encode()).hexdigest()
@@ -337,8 +344,8 @@ def api_exams():
             (SELECT COUNT(*) FROM submissions WHERE exam_id=e.id AND student_id=?) as my_attempts,
             (SELECT MAX(score) FROM submissions WHERE exam_id=e.id AND student_id=?) as my_best
             FROM exams e LEFT JOIN users u ON e.created_by=u.id
-            WHERE e.is_active=1 ORDER BY e.created_at DESC
-    """, (uid, uid)).fetchall()
+            WHERE e.is_active=1 AND (e.teacher_approved=1 OR e.created_by=?) ORDER BY e.created_at DESC
+    """, (uid, uid, uid)).fetchall()
     result = []
     for e in exams:
             ed = dict(e)
@@ -350,6 +357,11 @@ def api_exams():
             if ed.get('close_at') and now_str > ed['close_at']:
                 open_ok = False
             ed['schedule_open'] = open_ok and bool(ed.get('is_open', 1))
+            # Check if can attempt more
+            attempts = ed.get('my_attempts', 0)
+            max_attempts = ed.get('max_attempts', 999)
+            ed['can_attempt'] = attempts < max_attempts
+            ed['attempts_left'] = max(0, max_attempts - attempts)
             result.append(ed)
     c.close()
     return jsonify(result)
@@ -360,20 +372,33 @@ def api_exam(eid):
     c = get_db()
     exam = c.execute("SELECT * FROM exams WHERE id=?", (eid,)).fetchone()
     if not exam: c.close(); return jsonify({'error': 'Không tìm thấy'}), 404
+    # Check max attempts
+    attempts = c.execute("SELECT COUNT(*) as c FROM submissions WHERE exam_id=? AND student_id=?", (eid, session['user_id'])).fetchone()['c']
+    max_attempts = exam.get('max_attempts', 999)
+    if attempts >= max_attempts:
+        c.close()
+        return jsonify({'error': f'Bạn đã thi {attempts} lần. Tối đa {max_attempts} lần.'}), 403
     qs = c.execute("SELECT id,question_number,type,content,option_a,option_b,option_c,option_d,score FROM questions WHERE exam_id=? ORDER BY question_number", (eid,)).fetchall()
+    # Shuffle if enabled
+    qs_list = [dict(q) for q in qs]
+    if exam.get('shuffle_questions', 0):
+        random.shuffle(qs_list)
     c.close()
-    return jsonify({'exam': dict(exam), 'questions': [dict(q) for q in qs]})
+    return jsonify({'exam': dict(exam), 'questions': qs_list})
 
 @app.route('/api/exam/create', methods=['POST'])
 @teacher_req
 def api_create_exam():
     d = request.json or {}
     c = get_db()
-    cur = c.execute("""INSERT INTO exams(title,subject,description,source,time_limit,total_score,created_by,is_open,open_at,close_at)
-                           VALUES(?,?,?,?,?,?,?,?,?,?)""",
+    user = c.execute("SELECT is_approved FROM users WHERE id=?", (session['user_id'],)).fetchone()
+    teacher_approved = user['is_approved'] if user else 0
+    cur = c.execute("""INSERT INTO exams(title,subject,description,source,time_limit,total_score,created_by,is_open,open_at,close_at,max_attempts,shuffle_questions,teacher_approved)
+                           VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (d['title'], d['subject'], d.get('description',''), d.get('source',''),
              d.get('time_limit',90), d.get('total_score',10), session['user_id'],
-             d.get('is_open',1), d.get('open_at') or None, d.get('close_at') or None))
+             d.get('is_open',1), d.get('open_at') or None, d.get('close_at') or None,
+             d.get('max_attempts',999), d.get('shuffle_questions',0), teacher_approved))
     eid = cur.lastrowid
     for i, q in enumerate(d.get('questions',[]), 1):
             c.execute("""INSERT INTO questions(exam_id,question_number,type,content,option_a,option_b,option_c,option_d,correct_answer,score,explanation)
@@ -736,7 +761,7 @@ def api_admin_overview():
 @admin_req
 def api_admin_users():
     c = get_db()
-    users = c.execute("""SELECT u.id,u.username,u.fullname,u.role,u.avatar,u.created_at,
+    users = c.execute("""SELECT u.id,u.username,u.fullname,u.role,u.avatar,u.is_approved,u.created_at,
         (SELECT COUNT(*) FROM submissions WHERE student_id=u.id) as total_subs,
         (SELECT COUNT(*) FROM exams WHERE created_by=u.id) as total_exams
         FROM users u ORDER BY u.created_at DESC""").fetchall()
@@ -768,6 +793,24 @@ def api_admin_change_role():
     avatars = {'student':'🎓','teacher':'👨‍🏫','admin':'👑'}
     c = get_db()
     c.execute("UPDATE users SET role=?,avatar=? WHERE id=?", (new_role, avatars.get(new_role,'🎓'), uid))
+    c.commit(); c.close()
+    return jsonify({'success':True})
+
+@app.route('/api/admin/approve-teacher/<int:uid>', methods=['POST'])
+@admin_req
+def api_admin_approve_teacher(uid):
+    c = get_db()
+    c.execute("UPDATE users SET is_approved=1 WHERE id=? AND role='teacher'", (uid,))
+    c.execute("UPDATE exams SET teacher_approved=1 WHERE created_by=?", (uid,))
+    c.commit(); c.close()
+    return jsonify({'success':True})
+
+@app.route('/api/admin/reject-teacher/<int:uid>', methods=['POST'])
+@admin_req
+def api_admin_reject_teacher(uid):
+    c = get_db()
+    c.execute("UPDATE users SET is_approved=0 WHERE id=?", (uid,))
+    c.execute("UPDATE exams SET is_active=0 WHERE created_by=?", (uid,))
     c.commit(); c.close()
     return jsonify({'success':True})
 

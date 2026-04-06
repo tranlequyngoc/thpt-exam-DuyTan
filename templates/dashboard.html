@@ -185,7 +185,8 @@ if(role=='admin'){document.getElementById('adminBtn').style.display='inline';}
                     ${bestHtml}
                 </div>
                 <div class="exam-actions">
-                    <a class="btn btn-primary" href="/exam/${e.id}">&#x1F3AE; Làm bài</a>
+                    ${e.can_attempt?'<a class="btn btn-primary" href="/exam/'+e.id+'">&#x1F3AE; Làm bài</a>':'<span style="color:#e74c3c;font-weight:700">&#x26A0; Hết lần thi</span>'}
+                    ${e.can_attempt&&e.max_attempts<999?'<small style="color:#f39c12">('+e.attempts_left+'/'+e.max_attempts+')</small>':''}
                     ${(role=='teacher'||role=='admin')?'<button class="btn btn-danger btn-sm" onclick="delExam('+e.id+')">&#x1F5D1; Xóa</button>':''}
                 </div>
             </div>`;
