@@ -1,108 +1,178 @@
 <!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>X-Exam - Giáo viên xem bai</title>
+    <title>X-Exam - Xem bai lam</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
     *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',sans-serif;background:#f0f2f5}
-    .nav{background:linear-gradient(135deg,#302b63,#24243e);color:#fff;padding:15px 30px;display:flex;justify-content:space-between;align-items:center}
-    .nav a{color:#fff;text-decoration:none;padding:8px 16px;border-radius:8px}.nav a:hover{background:rgba(255,255,255,0.2)}
-    .container{max-width:1100px;margin:20px auto;padding:0 20px}
-    h1{color:#302b63;margin-bottom:20px}
-    .filters{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
-    .filters select,.filters input{padding:8px 12px;border:2px solid #ddd;border-radius:8px;font-size:14px}
-    table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.08)}
-    th,td{padding:12px 15px;text-align:left;border-bottom:1px solid #eee;font-size:14px}
-    th{background:#302b63;color:#fff;font-weight:600}
+    .nav{background:linear-gradient(135deg,#302b63,#24243e);color:#fff;padding:12px 25px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100}
+    .nav a{color:#fff;text-decoration:none;padding:6px 14px;border-radius:20px;font-size:13px}.nav a:hover{background:rgba(255,255,255,.2)}
+    .container{max-width:1200px;margin:20px auto;padding:0 20px}
+    .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:20px}
+    .stat-card{background:#fff;padding:18px;border-radius:12px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+    .stat-card .num{font-size:26px;font-weight:800;color:#302b63}.stat-card .label{color:#888;font-size:12px;margin-top:3px}
+    .toolbar{display:flex;gap:10px;margin-bottom:15px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+    .filters{display:flex;gap:8px;flex-wrap:wrap}
+    .filters select,.filters input{padding:9px 12px;border:2px solid #ddd;border-radius:8px;font-size:13px}
+    .btn{padding:9px 18px;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:.3s;display:inline-flex;align-items:center;gap:6px}
+    .btn:hover{transform:translateY(-1px)}.btn-primary{background:linear-gradient(135deg,#302b63,#5b51a5);color:#fff}
+    .btn-success{background:#27ae60;color:#fff}.btn-excel{background:#217346;color:#fff}
+    .btn-sm{padding:5px 12px;font-size:12px}
+    table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+    th,td{padding:11px 14px;text-align:left;border-bottom:1px solid #eee;font-size:13px}
+    th{background:#302b63;color:#fff;font-weight:600;font-size:12px}
     tr:hover{background:#f8f7ff}
-    .score{font-weight:700;font-size:16px}
+    .score{font-weight:800;font-size:15px}
     .score-high{color:#27ae60}.score-mid{color:#f39c12}.score-low{color:#e74c3c}
-    .btn-sm{padding:6px 12px;background:#302b63;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px}
-    .btn-sm:hover{background:#24243e}
-    .btn-view{background:#3498db}
-    .comment-box{display:none;margin-top:8px}
-    .comment-box textarea{width:100%;padding:8px;border:2px solid #ddd;border-radius:6px;font-size:13px;resize:vertical}
-    .badge{padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
-    .badge-pass{background:#e8f5e9;color:#27ae60}
-    .badge-fail{background:#ffebee;color:#e74c3c}
-    .stats-row{display:flex;gap:15px;margin-bottom:20px}
-    .stat-card{background:#fff;padding:20px;border-radius:12px;flex:1;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.06)}
-    .stat-card .num{font-size:28px;font-weight:700;color:#302b63}
-    .stat-card .label{color:#888;font-size:13px;margin-top:4px}
+    .badge{padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700}
+    .badge-pass{background:#e8f5e9;color:#27ae60}.badge-fail{background:#ffebee;color:#e74c3c}
+    /* Modal */
+    .modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:1000;overflow-y:auto;padding:20px}
+    .modal.show{display:flex;align-items:flex-start;justify-content:center}
+    .modal-box{background:#fff;border-radius:20px;padding:28px;max-width:750px;width:100%;margin:auto;position:relative}
+    .modal-close{position:absolute;top:15px;right:18px;font-size:24px;cursor:pointer;color:#888;border:none;background:none}
+    .essay-grade{background:#fff3e0;border:2px solid #ffb74d;border-radius:12px;padding:14px;margin-top:8px}
+    .essay-img{max-width:100%;border-radius:8px;margin-top:8px;border:1px solid #ddd}
+    .score-input{width:80px;padding:6px 10px;border:2px solid #ddd;border-radius:8px;font-size:14px;font-weight:700;text-align:center}
+    .score-input:focus{border-color:#302b63;outline:none}
+    @media(max-width:768px){table{font-size:12px}th,td{padding:8px 6px}}
     </style></head><body>
-    <div class="nav"><a href="/dashboard">X-EXAM</a><h3>Giáo viên - Xem bài làm</h3><a href="/dashboard">Về trang chủ</a></div>
+    <div class="nav">
+    <a href="/dashboard">X-EXAM</a>
+    <h3>Giao vien - Xem bai lam</h3>
+    <div><a href="/teacher-stats">Bieu do</a> <a href="/dashboard">Trang chu</a></div>
+    </div>
     <div class="container">
-    <h1>Danh sách bài làm của học sinh</h1>
     <div class="stats-row" id="statsRow"></div>
+    <div class="toolbar">
     <div class="filters">
-    <select id="filterSubject" onchange="filterSubs()"><option value="">-- Tat ca mon --</option></select>
     <select id="filterExam" onchange="filterSubs()"><option value="">-- Tat ca de --</option></select>
+    <select id="filterSubject" onchange="filterSubs()"><option value="">-- Tat ca mon --</option></select>
     <input type="text" id="filterName" placeholder="Tim hoc sinh..." oninput="filterSubs()">
     </div>
-    <table><thead><tr><th>#</th><th>Học sinh</th><th>Đề thi</th><th>Mon</th><th>Diem</th><th>D/S/T</th><th>Thoi gian</th><th>Ngay</th><th>Hanh dong</th></tr></thead>
+    <div style="display:flex;gap:8px">
+    <button class="btn btn-excel" onclick="exportExcel()">Excel</button>
+    <a class="btn btn-primary" href="/teacher-stats">Bieu do</a>
+    </div>
+    </div>
+    <table><thead><tr><th>#</th><th>Hoc sinh</th><th>De thi</th><th>Mon</th><th>Diem</th><th>D/S/T</th><th>TG</th><th>Ngay</th><th>Hanh dong</th></tr></thead>
     <tbody id="subList"></tbody></table>
     </div>
+    
+    <!-- MODAL CHAM BAI TU LUAN -->
+    <div class="modal" id="gradeModal">
+    <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <h2 style="color:#302b63;margin-bottom:16px">Cham bai tu luan</h2>
+    <div id="modalContent"></div>
+    <div style="margin-top:16px">
+    <label style="font-weight:600;display:block;margin-bottom:6px">Nhan xet cua giao vien:</label>
+    <textarea id="modalComment" rows="3" style="width:100%;padding:10px;border:2px solid #ddd;border-radius:8px;font-size:14px;resize:vertical"></textarea>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:10px;justify-content:flex-end">
+    <button class="btn" onclick="closeModal()" style="background:#eee;color:#333">Huy</button>
+    <button class="btn btn-success" onclick="saveGrade()">Luu diem</button>
+    </div>
+    </div>
+    </div>
+    
     <script>
-    let allSubs=[];
+    let allSubs=[],currentSubId=null,currentEssayScores={};
     async function load(){
-        const r=await fetch('/api/teacher/submissions');allSubs=await r.json();
-        // Populate filters
-        const subjects=[...new Set(allSubs.map(s=>s.subject))];
-        const exams=[...new Set(allSubs.map(s=>s.exam_title))];
-        document.getElementById('filterSubject').innerHTML='<option value="">-- Tat ca mon --</option>'+subjects.map(s=>'<option>'+s+'</option>').join('');
-        document.getElementById('filterExam').innerHTML='<option value="">-- Tat ca de --</option>'+exams.map(e=>'<option>'+e+'</option>').join('');
-        // Stats
-        const total=allSubs.length;
-        const avgScore=total?allSubs.reduce((a,b)=>a+b.score,0)/total:0;
-        const passRate=total?allSubs.filter(s=>s.score>=5).length/total*100:0;
-        document.getElementById('statsRow').innerHTML=`
-            <div class="stat-card"><div class="num">${total}</div><div class="label">Tổng bài nộp</div></div>
-            <div class="stat-card"><div class="num">${avgScore.toFixed(1)}</div><div class="label">Điểm TB</div></div>
-            <div class="stat-card"><div class="num">${passRate.toFixed(0)}%</div><div class="label">Tỉ lệ đạt (>=5)</div></div>`;
-        filterSubs();
+    const r=await fetch('/api/teacher/submissions');allSubs=await r.json();
+    const subjects=[...new Set(allSubs.map(s=>s.subject))];
+    const exams=[...new Map(allSubs.map(s=>[s.exam_id,s])).values()];
+    document.getElementById('filterSubject').innerHTML='<option value="">-- Tat ca mon --</option>'+subjects.map(s=>'<option>'+s+'</option>').join('');
+    document.getElementById('filterExam').innerHTML='<option value="">-- Tat ca de --</option>'+exams.map(e=>'<option value="'+e.exam_id+'">'+e.exam_title+'</option>').join('');
+    const total=allSubs.length;
+    const avg=total?allSubs.reduce((a,b)=>a+(b.score||0),0)/total:0;
+    const pass=total?allSubs.filter(s=>s.score>=5).length/total*100:0;
+    const essay=allSubs.filter(s=>s.has_essay).length;
+    document.getElementById('statsRow').innerHTML=`
+    <div class="stat-card"><div class="num">${total}</div><div class="label">Tong bai</div></div>
+    <div class="stat-card"><div class="num">${avg.toFixed(1)}</div><div class="label">Diem TB</div></div>
+    <div class="stat-card"><div class="num">${pass.toFixed(0)}%</div><div class="label">Dat >=5</div></div>
+    <div class="stat-card"><div class="num">${allSubs.filter(s=>s.score>=8).length}</div><div class="label">Gioi (>=8)</div></div>`;
+    filterSubs();
     }
     function filterSubs(){
-        const sub=document.getElementById('filterSubject').value;
-        const exam=document.getElementById('filterExam').value;
-        const name=document.getElementById('filterName').value.toLowerCase();
-        let data=allSubs;
-        if(sub)data=data.filter(s=>s.subject==sub);
-        if(exam)data=data.filter(s=>s.exam_title==exam);
-        if(name)data=data.filter(s=>s.student_name.toLowerCase().includes(name)||s.username.toLowerCase().includes(name));
-        renderSubs(data);
+    const sub=document.getElementById('filterSubject').value;
+    const exam=document.getElementById('filterExam').value;
+    const name=document.getElementById('filterName').value.toLowerCase();
+    let data=allSubs;
+    if(sub)data=data.filter(s=>s.subject==sub);
+    if(exam)data=data.filter(s=>String(s.exam_id)==exam);
+    if(name)data=data.filter(s=>(s.student_name||'').toLowerCase().includes(name)||(s.username||'').toLowerCase().includes(name));
+    renderSubs(data);
     }
     function renderSubs(data){
-        const el=document.getElementById('subList');
-        el.innerHTML=data.map((s,i)=>{
-            const sc=s.score;const ts=s.total_score||10;
-            const cls=sc>=ts*0.7?'score-high':sc>=ts*0.5?'score-mid':'score-low';
-            const badge=sc>=5?'<span class="badge badge-pass">Đạt</span>':'<span class="badge badge-fail">Chưa đạt</span>';
-            const mins=Math.floor((s.time_spent||0)/60);const secs=(s.time_spent||0)%60;
-            return`<tr>
-                <td>${i+1}</td>
-                <td><b>${s.student_name}</b><br><small style="color:#888">${s.username}</small></td>
-                <td>${s.exam_title}</td><td>${s.subject}</td>
-                <td><span class="score ${cls}">${sc}/${ts}</span> ${badge}</td>
-                <td style="color:#27ae60">${s.total_correct}D</td>
-                <td>${mins}p${secs}s</td>
-                <td style="font-size:12px;color:#888">${(s.submitted_at||'').slice(0,16)}</td>
-                <td>
-                    <a class="btn-sm btn-view" href="/result/${s.id}" target="_blank">Xem</a>
-                    <button class="btn-sm" onclick="toggleComment(${s.id})">Nhận xét</button>
-                    <div class="comment-box" id="cmt${s.id}">
-                        <textarea id="cmtText${s.id}" rows="2" placeholder="Nhập nhận xét...">${s.teacher_comment||''}</textarea>
-                        <button class="btn-sm" onclick="saveComment(${s.id})" style="margin-top:4px">Lưu</button>
-                    </div>
-                </td></tr>`;
-        }).join('');
+    const el=document.getElementById('subList');
+    el.innerHTML=data.map((s,i)=>{
+    const sc=s.score;const ts=s.total_score||10;
+    const cls=sc>=ts*0.8?'score-high':sc>=ts*0.5?'score-mid':'score-low';
+    const badge=sc>=5?'<span class="badge badge-pass">Dat</span>':'<span class="badge badge-fail">Chua dat</span>';
+    const m=Math.floor((s.time_spent||0)/60);const sec=(s.time_spent||0)%60;
+    return`<tr>
+    <td>${i+1}</td>
+    <td><b>${s.student_name}</b><br><small style="color:#888">${s.username}</small></td>
+    <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${s.exam_title}</td>
+    <td>${s.subject}</td>
+    <td><span class="score ${cls}">${sc}/${ts}</span> ${badge}</td>
+    <td><span style="color:#27ae60">${s.total_correct}</span>/<span style="color:#e74c3c">${s.total_wrong}</span>/<span style="color:#888">${s.total_blank}</span></td>
+    <td>${m}p${sec}s</td>
+    <td style="font-size:11px;color:#888">${(s.submitted_at||'').slice(0,16)}</td>
+    <td style="white-space:nowrap">
+    <a class="btn btn-sm" href="/result/${s.id}" target="_blank" style="background:#3498db;color:#fff">Xem</a>
+    <button class="btn btn-sm btn-success" onclick="openGrade(${s.id})">Cham TL</button>
+    </td></tr>`;
+    }).join('');
     }
-    function toggleComment(id){
-        const el=document.getElementById('cmt'+id);
-        el.style.display=el.style.display=='none'||!el.style.display?'block':'none';
+    async function openGrade(subId){
+    currentSubId=subId;currentEssayScores={};
+    const r=await fetch('/api/result/'+subId);const d=await r.json();
+    const sub=d.submission;const qs=d.questions;const sa=d.student_answers;
+    document.getElementById('modalComment').value=sub.teacher_comment||'';
+    const existing=JSON.parse(sub.question_scores||'{}');
+    let html='';
+    qs.forEach(q=>{
+    if(q.type!='essay')return;
+    const ans=sa[q.id]||'';
+    const imgMatch=ans.match(/<img[^>]+src="([^"]+)"/);
+    const textAns=ans.replace(/<img[^>]*>/g,'').trim();
+    const prevScore=existing[q.id]||'';
+    html+=`<div class="essay-grade">
+    <div style="font-weight:700;color:#302b63;margin-bottom:8px">Cau ${q.question_number} (toi da ${q.score} diem): ${q.content.slice(0,100)}...</div>
+    <div style="font-size:13px;color:#555;margin-bottom:8px"><b>Tra loi:</b> ${textAns||'(trong)'}</div>
+    ${imgMatch?'<img class="essay-img" src="'+imgMatch[1]+'" alt="Anh bai lam">':''}
+    <div style="display:flex;align-items:center;gap:10px;margin-top:10px">
+    <label style="font-weight:600;font-size:13px">Cho diem:</label>
+    <input class="score-input" type="number" id="escore_${q.id}" value="${prevScore}" min="0" max="${q.score}" step="0.25" placeholder="0-${q.score}" oninput="currentEssayScores[${q.id}]=parseFloat(this.value)||0">
+    <span style="font-size:12px;color:#888">/ ${q.score}</span>
+    </div>
+    </div>`;
+    });
+    if(!html)html='<div style="text-align:center;padding:20px;color:#888">Bai nay khong co cau tu luan!</div>';
+    document.getElementById('modalContent').innerHTML=html;
+    document.getElementById('gradeModal').classList.add('show');
     }
-    async function saveComment(id){
-        const text=document.getElementById('cmtText'+id).value;
-        const r=await fetch('/api/teacher/comment',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({submission_id:id,comment:text})});
-        const d=await r.json();
-        if(d.success)alert('Đã lưu nhận xét!');
+    function closeModal(){document.getElementById('gradeModal').classList.remove('show');}
+    async function saveGrade(){
+    // Collect scores from inputs
+    document.querySelectorAll('[id^="escore_"]').forEach(el=>{
+    const qid=el.id.replace('escore_','');
+    currentEssayScores[qid]=parseFloat(el.value)||0;
+    });
+    const comment=document.getElementById('modalComment').value;
+    const r=await fetch('/api/teacher/grade-submission',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({submission_id:currentSubId,essay_scores:currentEssayScores,comment})});
+    const d=await r.json();
+    if(d.success){alert('Da cap nhat diem: '+d.new_score);closeModal();load();}
+    else alert('Loi: '+d.error);
     }
+    async function exportExcel(){
+    const eid=document.getElementById('filterExam').value;
+    const url='/api/teacher/export-excel'+(eid?'?exam_id='+eid:'');
+    window.open(url,'_blank');
+    }
+    document.getElementById('gradeModal').addEventListener('click',function(e){if(e.target===this)closeModal();});
     load();
     </script><script src="/static/js/mascot.js"></script>
-</body></html>
+    </body></html>

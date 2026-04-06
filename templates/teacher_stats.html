@@ -1,0 +1,81 @@
+<!DOCTYPE html><html lang="vi"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>X-Exam - Thong ke GV</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+    *{margin:0;padding:0;box-sizing:border-box}body{font-family:'Segoe UI',sans-serif;background:#f0f2f5}
+    .nav{background:linear-gradient(135deg,#302b63,#24243e);color:#fff;padding:12px 25px;display:flex;justify-content:space-between;align-items:center}
+    .nav a{color:#fff;text-decoration:none;padding:6px 14px;border-radius:20px;font-size:13px}.nav a:hover{background:rgba(255,255,255,.2)}
+    .container{max-width:1100px;margin:20px auto;padding:0 20px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(480px,1fr));gap:20px;margin-bottom:20px}
+    .card{background:#fff;border-radius:16px;padding:24px;box-shadow:0 4px 15px rgba(0,0,0,.08)}
+    .card h2{color:#302b63;margin-bottom:16px;font-size:18px;display:flex;align-items:center;gap:8px}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+    .stat{background:#fff;border-radius:12px;padding:18px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+    .stat .num{font-size:28px;font-weight:800;color:#302b63}.stat .label{font-size:12px;color:#888;margin-top:3px}
+    .filter-row{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center}
+    select{padding:10px 14px;border:2px solid #ddd;border-radius:10px;font-size:14px}
+    select:focus{border-color:#302b63;outline:none}
+    .diff-bar{height:8px;background:#e0e0e0;border-radius:8px;margin-top:4px;overflow:hidden}
+    .diff-fill{height:100%;border-radius:8px;transition:width .5s}
+    .empty{text-align:center;padding:40px;color:#888}
+    @media(max-width:600px){.grid{grid-template-columns:1fr}}
+    </style></head><body>
+    <div class="nav">
+    <a href="/dashboard">X-EXAM</a>
+    <h3>Thong ke Giao vien</h3>
+    <div><a href="/teacher-review">Xem bai lam</a> <a href="/dashboard">Trang chu</a></div>
+    </div>
+    <div class="container">
+    <div class="filter-row">
+    <label><b>Chon de thi:</b></label>
+    <select id="examSelect" onchange="loadStats()"><option value="">-- Tong hop tat ca de --</option></select>
+    </div>
+    <div class="stats" id="overviewStats"></div>
+    <div class="grid">
+    <div class="card">
+    <h2>Phan bo diem</h2>
+    <canvas id="scoreChart" height="200"></canvas>
+    </div>
+    <div class="card">
+    <h2>Do kho tung cau</h2>
+    <div id="qDifficulty"></div>
+    </div>
+    </div>
+    </div>
+    <script>
+    let scoreChart=null;
+    async function loadExams(){
+    const r=await fetch('/api/exams');const data=await r.json();
+    const sel=document.getElementById('examSelect');
+    data.forEach(e=>sel.innerHTML+=`<option value="${e.id}">${e.title} (${e.subject})</option>`);
+    }
+    async function loadStats(){
+    const eid=document.getElementById('examSelect').value;
+    const url='/api/teacher/chart-stats'+(eid?'?exam_id='+eid:'');
+    const r=await fetch(url);const d=await r.json();
+    // Overview
+    document.getElementById('overviewStats').innerHTML=`
+    <div class="stat"><div class="num">${d.total}</div><div class="label">Tong bai nop</div></div>
+    <div class="stat"><div class="num">${d.labels[d.score_distribution.indexOf(Math.max(...d.score_distribution))]}</div><div class="label">Diem pho bien</div></div>
+    <div class="stat"><div class="num">${d.score_distribution[2]+d.score_distribution[3]+d.score_distribution[4]}</div><div class="label">Dat tren 4 diem</div></div>`;
+    // Score chart
+    const ctx=document.getElementById('scoreChart').getContext('2d');
+    if(scoreChart)scoreChart.destroy();
+    scoreChart=new Chart(ctx,{type:'bar',data:{
+    labels:d.labels,
+    datasets:[{label:'So hoc sinh',data:d.score_distribution,
+    backgroundColor:['#e74c3c','#e67e22','#f1c40f','#2ecc71','#27ae60'],
+    borderRadius:8}]
+    },options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}}});
+    // Question difficulty
+    const qEl=document.getElementById('qDifficulty');
+    if(!d.question_stats.length){qEl.innerHTML='<div class="empty">Chon mot de cu the de xem do kho tung cau</div>';return;}
+    qEl.innerHTML=d.question_stats.map(q=>{
+    const color=q.correct_pct>=70?'#27ae60':q.correct_pct>=40?'#f39c12':'#e74c3c';
+    return`<div style="margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;font-size:13px"><span>Cau ${q.num}: ${q.content}...</span><b style="color:${color}">${q.correct_pct}%</b></div>
+    <div class="diff-bar"><div class="diff-fill" style="width:${q.correct_pct}%;background:${color}"></div></div>
+    </div>`;}).join('');
+    }
+    loadExams();loadStats();
+    </script></body></html>

@@ -99,14 +99,24 @@
     <td>${st}</td>
     <td>${u.total_subs}</td><td>${u.total_exams}</td>
     <td style="font-size:11px;opacity:.7">${(u.created_at||'').slice(0,16)}</td>
-    <td>${u.role=='teacher'&&!u.is_approved?'<button class="btn-sm" style="background:#27ae60" onclick="approveTeacher('+u.id+')">Duyet</button>':''}
-    <select onchange="changeRole(${u.id},this.value)"><option value="">Doi role</option><option value="student">Hoc sinh</option><option value="teacher">Giao vien</option><option value="admin">Admin</option></select>
-    <button class="btn-sm btn-del" onclick="delUser(${u.id},'${u.username}')">&times;</button></td></tr>`}).join('')+'</table>';
+    <td style="white-space:nowrap">
+    ${u.role=='teacher'&&!u.is_approved?'<button class="btn-sm" style="background:#27ae60;margin:2px" onclick="approveTeacher('+u.id+')">Duyet</button>':''}
+    <button class="btn-sm btn-role" style="margin:2px" onclick="resetPassword(${u.id},'${u.username}')">Reset MK</button>
+    <select onchange="changeRole(${u.id},this.value)" style="margin:2px"><option value="">Doi role</option><option value="student">Hoc sinh</option><option value="teacher">Giao vien</option><option value="admin">Admin</option></select>
+    <button class="btn-sm btn-del" style="margin:2px" onclick="delUser(${u.id},'${u.username}')">&times;</button>
+    </td></tr>`}).join('')+'</table>';
     }
     async function changeRole(uid,role){if(!role)return;if(!confirm('Doi role thanh '+role+'?'))return;
     await fetch('/api/admin/change-role',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:uid,role})});loadUsers();loadOverview();}
     async function approveTeacher(uid){if(!confirm('Duyet tai khoan giao vien nay?'))return;
     await fetch('/api/admin/approve-teacher/'+uid,{method:'POST'});loadUsers();loadOverview();}
+    async function resetPassword(uid,uname){
+    const pw=prompt('Nhap mat khau moi cho "'+uname+'" (it nhat 6 ky tu):');
+    if(!pw)return;if(pw.length<6){alert('Mat khau qua ngan!');return;}
+    const r=await fetch('/api/admin/reset-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:uid,new_password:pw})});
+    const d=await r.json();
+    if(d.success)alert('Da doi mat khau thanh cong!');else alert('Loi: '+d.error);
+    }
     async function delUser(uid,uname){if(!confirm('XOA user "'+uname+'" va tat ca du lieu?'))return;
     await fetch('/api/admin/delete-user/'+uid,{method:'DELETE'});loadUsers();loadOverview();}
     async function loadExams(){const r=await fetch('/api/exams');const data=await r.json();

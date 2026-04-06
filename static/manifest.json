@@ -1,0 +1,15 @@
+{
+      "name": "X-EXAM - He thong luyen thi THPT",
+      "short_name": "X-EXAM",
+      "description": "He thong luyen thi THPT DuyTan - On thi mien phi",
+      "start_url": "/",
+      "display": "standalone",
+      "background_color": "#1a1a2e",
+      "theme_color": "#667eea",
+      "orientation": "portrait-primary",
+      "icons": [
+        {"src": "/static/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}
+      ],
+      "categories": ["education"],
+      "lang": "vi"
+    }

@@ -19,6 +19,20 @@ os.makedirs(os.path.dirname(DB), exist_ok=True)
 
 # ─── DB ───
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
+CLOUDINARY_URL = os.environ.get('CLOUDINARY_URL', '')
+
+def upload_to_cloud(file_obj, filename):
+    if CLOUDINARY_URL:
+        try:
+            import cloudinary, cloudinary.uploader
+            cloudinary.config(cloudinary_url=CLOUDINARY_URL)
+            result = cloudinary.uploader.upload(file_obj, public_id=f'xexam/{filename}', resource_type='auto')
+            return result['secure_url']
+        except Exception as e:
+            print(f"Cloudinary error: {e}")
+    fp = os.path.join(app.config['UPLOAD_FOLDER'] if 'app' in dir() else 'uploads', filename)
+    if hasattr(file_obj, 'save'): file_obj.save(fp)
+    return f'/uploads/{filename}'
 
 class PGCursor:
     def __init__(self, cur):
@@ -166,6 +180,15 @@ def init_db():
             pin_exam_at TEXT DEFAULT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE TABLE IF NOT EXISTS notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            title TEXT NOT NULL,
+            message TEXT DEFAULT '',
+            link TEXT DEFAULT '',
+            is_read INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
     """)
     # Migrate exams table if missing columns
     if DATABASE_URL:
@@ -196,6 +219,14 @@ def init_db():
             if col not in existing3:
                 try: c.execute(f"ALTER TABLE users ADD COLUMN {col} {defval}")
                 except: pass
+    # Migrate submissions - add question_scores
+    if DATABASE_URL:
+        existing4 = [r['column_name'] for r in c.execute("SELECT column_name FROM information_schema.columns WHERE table_name='submissions'").fetchall()]
+    else:
+        existing4 = [r[1] for r in c.execute("PRAGMA table_info(submissions)").fetchall()]
+    if 'question_scores' not in existing4:
+        try: c.execute("ALTER TABLE submissions ADD COLUMN question_scores TEXT DEFAULT '{}'")
+        except: pass
 
     pw = hashlib.sha256('admin123'.encode()).hexdigest()
     pw2 = hashlib.sha256('123456'.encode()).hexdigest()
@@ -292,6 +323,15 @@ def group_detail_page(gid): return render_template('group_detail.html', group_id
 @app.route('/admin')
 @admin_req
 def admin_page(): return render_template('admin.html')
+
+@app.route('/teacher-stats')
+@teacher_req
+def teacher_stats_page(): return render_template('teacher_stats.html')
+
+@app.route('/static/sw.js')
+def sw_js():
+    from flask import send_from_directory
+    return send_from_directory('static', 'sw.js', mimetype='application/javascript')
 
 # ─── AUTH API ───
 @app.route('/api/login', methods=['POST'])
@@ -406,6 +446,15 @@ def api_create_exam():
                 (eid, i, q.get('type','multiple_choice'), q.get('content',''),
                  q.get('option_a',''), q.get('option_b',''), q.get('option_c',''), q.get('option_d',''),
                  q.get('correct_answer',''), q.get('score',0.25), q.get('explanation','')))
+    # Notify students in teacher's groups
+    try:
+        groups = c.execute("SELECT group_id FROM group_members WHERE user_id=?", (session['user_id'],)).fetchall()
+        for g in groups:
+            members = c.execute("SELECT user_id FROM group_members WHERE group_id=? AND user_id!=?", (g['group_id'], session['user_id'])).fetchall()
+            for m in members:
+                c.execute("INSERT INTO notifications(user_id,title,message,link) VALUES(?,?,?,?)",
+                    (m['user_id'], 'De thi moi!', f'Giao vien vua dang de "{d["title"]}" - Mon {d["subject"]}', f'/exam/{eid}'))
+    except: pass
     c.commit(); c.close()
     return jsonify({'success': True, 'exam_id': eid})
 
@@ -841,6 +890,173 @@ def api_upload_answer_image():
 def serve_upload(filename):
     from flask import send_from_directory
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+# ─── NOTIFICATIONS ───
+@app.route('/api/notifications')
+@login_req
+def api_notifications():
+    c = get_db()
+    uid = session['user_id']
+    notifs = c.execute("SELECT * FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 20", (uid,)).fetchall()
+    unread = c.execute("SELECT COUNT(*) as c FROM notifications WHERE user_id=? AND is_read=0", (uid,)).fetchone()['c']
+    c.close()
+    return jsonify({'notifications': [dict(n) for n in notifs], 'unread': unread})
+
+@app.route('/api/notifications/read', methods=['POST'])
+@login_req
+def api_mark_read():
+    c = get_db()
+    c.execute("UPDATE notifications SET is_read=1 WHERE user_id=?", (session['user_id'],))
+    c.commit(); c.close()
+    return jsonify({'success': True})
+
+# ─── RESET PASSWORD ───
+@app.route('/api/admin/reset-password', methods=['POST'])
+@admin_req
+def api_admin_reset_password():
+    d = request.json or {}
+    uid = d.get('user_id')
+    new_pw = d.get('new_password', '')
+    if len(new_pw) < 6: return jsonify({'error': 'Mat khau phai co it nhat 6 ky tu'}), 400
+    pw_hash = hashlib.sha256(new_pw.encode()).hexdigest()
+    c = get_db()
+    c.execute("UPDATE users SET password_hash=? WHERE id=?", (pw_hash, uid))
+    c.commit(); c.close()
+    return jsonify({'success': True})
+
+# ─── EXCEL EXPORT ───
+@app.route('/api/teacher/export-excel')
+@teacher_req
+def api_export_excel():
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import PatternFill, Font
+        from flask import send_file
+        import io
+    except ImportError:
+        return jsonify({'error': 'openpyxl chua duoc cai dat'}), 500
+    exam_id = request.args.get('exam_id')
+    c = get_db()
+    if exam_id:
+        subs = c.execute("""SELECT s.*,u.fullname as student_name,u.username,e.title as exam_title,e.subject,e.total_score
+            FROM submissions s JOIN users u ON s.student_id=u.id JOIN exams e ON s.exam_id=e.id
+            WHERE e.id=? ORDER BY s.score DESC""", (exam_id,)).fetchall()
+    else:
+        subs = c.execute("""SELECT s.*,u.fullname as student_name,u.username,e.title as exam_title,e.subject,e.total_score
+            FROM submissions s JOIN users u ON s.student_id=u.id JOIN exams e ON s.exam_id=e.id
+            ORDER BY e.title, s.score DESC LIMIT 500""").fetchall()
+    c.close()
+    wb = Workbook(); ws = wb.active; ws.title = "Bang diem"
+    header_fill = PatternFill(start_color='302b63', end_color='302b63', fill_type='solid')
+    header_font = Font(bold=True, color='FFFFFF')
+    headers = ['STT','Ho ten','Username','De thi','Mon','Diem','Tong diem','Dung','Sai','Trong','Thoi gian','Ngay nop']
+    for i, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=i, value=h)
+        cell.fill = header_fill; cell.font = header_font
+    for i, s in enumerate(subs, 2):
+        ws.append([i-1, s['student_name'], s['username'], s['exam_title'], s['subject'],
+                   s['score'], s['total_score'], s['total_correct'], s['total_wrong'],
+                   s['total_blank'], f"{(s['time_spent']or 0)//60}p{(s['time_spent']or 0)%60}s", s['submitted_at']])
+    output = io.BytesIO(); wb.save(output); output.seek(0)
+    return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                     as_attachment=True, download_name='bang_diem_xexam.xlsx')
+
+# ─── ESSAY GRADING ───
+@app.route('/api/teacher/grade-submission', methods=['POST'])
+@teacher_req
+def api_grade_submission():
+    d = request.json or {}
+    sub_id = d.get('submission_id')
+    essay_scores = d.get('essay_scores', {})
+    comment = d.get('comment', '')
+    c = get_db()
+    sub = c.execute("SELECT * FROM submissions WHERE id=?", (sub_id,)).fetchone()
+    if not sub: c.close(); return jsonify({'error': 'Khong tim thay'}), 404
+    qs = c.execute("SELECT * FROM questions WHERE exam_id=?", (sub['exam_id'],)).fetchall()
+    answers = json.loads(sub['answers'] or '{}')
+    total = 0.0; cor = 0; wr = 0; bl = 0
+    for q in qs:
+        qid = str(q['id'])
+        if q['type'] == 'essay':
+            if qid in essay_scores:
+                sc = min(float(essay_scores[qid]), float(q['score']))
+                total += sc
+                if sc > 0: cor += 1
+                else: bl += 1
+            else:
+                sa = str(answers.get(qid, '')).strip()
+                if sa: total += float(q['score']) * 0.5; cor += 1
+                else: bl += 1
+        else:
+            sa = str(answers.get(qid, '')).strip()
+            ca = str(q['correct_answer'] or '').strip()
+            if not sa: bl += 1
+            elif sa.upper() == ca.upper(): total += float(q['score']); cor += 1
+            else: wr += 1
+    c.execute("UPDATE submissions SET score=?,total_correct=?,total_wrong=?,total_blank=?,teacher_comment=?,question_scores=? WHERE id=?",
+              (round(total,2), cor, wr, bl, comment, json.dumps(essay_scores), sub_id))
+    c.commit(); c.close()
+    return jsonify({'success': True, 'new_score': round(total, 2)})
+
+# ─── TEACHER CHART STATS ───
+@app.route('/api/teacher/chart-stats')
+@teacher_req
+def api_teacher_chart_stats():
+    c = get_db()
+    exam_id = request.args.get('exam_id')
+    if exam_id:
+        subs = c.execute("SELECT s.score,s.answers,e.total_score FROM submissions s JOIN exams e ON s.exam_id=e.id WHERE s.exam_id=?", (exam_id,)).fetchall()
+        qs = c.execute("SELECT id,question_number,content,correct_answer,type FROM questions WHERE exam_id=? ORDER BY question_number", (exam_id,)).fetchall()
+        # Question difficulty analysis
+        q_stats = []
+        for q in qs:
+            correct = 0; total_ans = 0
+            for sub in subs:
+                ans = json.loads(sub['answers'] or '{}')
+                sa = str(ans.get(str(q['id']), '')).strip()
+                ca = str(q['correct_answer'] or '').strip()
+                if sa: total_ans += 1
+                if sa.upper() == ca.upper(): correct += 1
+            pct = round(correct/max(total_ans,1)*100, 1)
+            q_stats.append({'num': q['question_number'], 'correct_pct': pct, 'content': (q['content'] or '')[:50]})
+    else:
+        subs = c.execute("SELECT s.score,e.total_score FROM submissions s JOIN exams e ON s.exam_id=e.id").fetchall()
+        q_stats = []
+    # Score distribution
+    if subs:
+        total_score = subs[0]['total_score'] or 10
+        buckets = [0]*5  # 0-2, 2-4, 4-6, 6-8, 8-10
+        for s in subs:
+            pct = (s['score'] or 0) / total_score * 10
+            idx = min(int(pct/2), 4)
+            buckets[idx] += 1
+    else:
+        buckets = [0]*5
+    c.close()
+    return jsonify({'score_distribution': buckets, 'question_stats': q_stats,
+                    'labels': ['0-2','2-4','4-6','6-8','8-10'], 'total': len(subs)})
+
+# ─── CLOUDINARY UPLOAD UPDATE ───
+@app.route('/api/upload-answer-image', methods=['POST'])
+@login_req
+def api_upload_answer_image_v2():
+    if 'image' not in request.files: return jsonify({'error':'No image'}),400
+    f = request.files['image']
+    import time
+    ext = (f.filename or 'img.jpg').rsplit('.',1)[-1].lower()
+    fn = f"ans_{session['user_id']}_{int(time.time())}.{ext}"
+    if CLOUDINARY_URL:
+        try:
+            import cloudinary, cloudinary.uploader
+            cloudinary.config(cloudinary_url=CLOUDINARY_URL)
+            result = cloudinary.uploader.upload(f, public_id=f'xexam/answers/{fn}', resource_type='image')
+            url = result['secure_url']
+            return jsonify({'success':True,'url':url,'filename':fn})
+        except Exception as e:
+            print(f"Cloudinary error: {e}")
+    fp = os.path.join(app.config['UPLOAD_FOLDER'], fn)
+    f.save(fp)
+    return jsonify({'success':True,'url':f'/uploads/{fn}','filename':fn})
 
 # ─── ANSWER FILE IMPORT ───
 @app.route('/api/import-answers', methods=['POST'])
